@@ -52,7 +52,15 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // 1. Determine configuration (from file or dynamic localstorage override)
 const getActiveConfig = () => {
-  const customConfig = localStorage.getItem('HUONG_FIREBASE_CONFIG');
+  let customConfig = localStorage.getItem('HUONG_FIREBASE_CONFIG');
+  if (!customConfig) {
+    try {
+      localStorage.setItem('HUONG_FIREBASE_CONFIG', JSON.stringify(fallbackConfig));
+      customConfig = JSON.stringify(fallbackConfig);
+    } catch (e) {
+      console.warn('Unable to store fallbackConfig into localStorage', e);
+    }
+  }
   if (customConfig) {
     try {
       const parsed = JSON.parse(customConfig);
@@ -98,6 +106,67 @@ if (isFirebaseEnabled) {
 
 export { db };
 
+// Sanitization utilities to satisfy strict security rules of Firestore
+function sanitizeProgress(prog: any): any {
+  return {
+    lessonId: String(prog.lessonId || ''),
+    completed: Boolean(prog.completed),
+    updatedAt: String(prog.updatedAt || new Date().toISOString())
+  };
+}
+
+function sanitizeDocument(docItem: any): any {
+  const allowedTypes = ['video', 'pdf', 'word', 'image'];
+  const typeValue = allowedTypes.includes(docItem.type) ? docItem.type : 'pdf';
+  return {
+    id: String(docItem.id || ''),
+    lessonId: String(docItem.lessonId || ''),
+    title: String(docItem.title || ''),
+    type: typeValue,
+    url: String(docItem.url || ''),
+    createdAt: String(docItem.createdAt || new Date().toISOString())
+  };
+}
+
+function sanitizeNote(note: any): any {
+  const sanitized: any = {
+    id: String(note.id || ''),
+    lessonId: String(note.lessonId || ''),
+    content: String(note.content || ''),
+    date: String(note.date || new Date().toISOString().split('T')[0]),
+    time: String(note.time || new Date().toTimeString().split(' ')[0].substring(0, 5)),
+    updatedAt: String(note.updatedAt || new Date().toISOString())
+  };
+  if (note.fileAttachment) {
+    sanitized.fileAttachment = {
+      name: String(note.fileAttachment.name || ''),
+      url: String(note.fileAttachment.url || ''),
+      type: String(note.fileAttachment.type || '')
+    };
+  }
+  return sanitized;
+}
+
+function sanitizeSchedule(sched: any): any {
+  const validSubjects = ['Toán', 'Hóa', 'Sinh', 'Lý', 'Khác'];
+  const subjectValue = validSubjects.includes(sched.subject) ? sched.subject : 'Khác';
+  const sanitized: any = {
+    id: String(sched.id || ''),
+    title: String(sched.title || ''),
+    subject: subjectValue,
+    date: String(sched.date || new Date().toISOString().split('T')[0]),
+    startTime: String(sched.startTime || '08:00'),
+    endTime: String(sched.endTime || '09:00')
+  };
+  if (sched.lessonId !== undefined && sched.lessonId !== null && sched.lessonId !== '') {
+    sanitized.lessonId = String(sched.lessonId);
+  }
+  if (sched.completed !== undefined) {
+    sanitized.completed = Boolean(sched.completed);
+  }
+  return sanitized;
+}
+
 // Helper to determine if we are active on Firebase
 export function isUsingFirebase(): boolean {
   return db !== null;
@@ -139,14 +208,10 @@ export async function saveLessonProgress(lessonId: string, completed: boolean): 
     updatedAt: new Date().toISOString()
   };
 
-  if (db) {
-    try {
-      await setDoc(doc(db, pathName, lessonId), data);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `${pathName}/${lessonId}`);
-    }
-  } else {
-    const current = await getLessonsProgress();
+  // Always write to local storage first for resilient local cache
+  try {
+    const local = localStorage.getItem('huong_lessons_progress');
+    const current: LessonProgress[] = local ? JSON.parse(local) : [];
     const idx = current.findIndex(p => p.lessonId === lessonId);
     if (idx > -1) {
       current[idx] = data;
@@ -154,6 +219,17 @@ export async function saveLessonProgress(lessonId: string, completed: boolean): 
       current.push(data);
     }
     localStorage.setItem('huong_lessons_progress', JSON.stringify(current));
+  } catch (err) {
+    console.warn('LocalStorage save progress error:', err);
+  }
+
+  // Sync to database if available
+  if (db) {
+    try {
+      await setDoc(doc(db, pathName, lessonId), sanitizeProgress(data));
+    } catch (e) {
+      console.warn('Firestore progress write err (fell back to local-only):', e);
+    }
   }
 }
 
@@ -188,31 +264,52 @@ export async function getDocumentAssets(): Promise<DocumentAsset[]> {
 
 export async function saveDocumentAsset(asset: DocumentAsset): Promise<void> {
   const pathName = 'documents';
+  
+  // Always write to local storage first for resilient local cache
+  try {
+    const local = localStorage.getItem('huong_document_assets');
+    const current: DocumentAsset[] = local ? JSON.parse(local) : [];
+    const idx = current.findIndex(a => a.id === asset.id);
+    if (idx > -1) {
+      current[idx] = asset;
+    } else {
+      current.push(asset);
+    }
+    localStorage.setItem('huong_document_assets', JSON.stringify(current));
+  } catch (err) {
+    console.warn('LocalStorage save document error:', err);
+  }
+
+  // Sync to database if available
   if (db) {
     try {
-      await setDoc(doc(db, pathName, asset.id), asset);
+      await setDoc(doc(db, pathName, asset.id), sanitizeDocument(asset));
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `${pathName}/${asset.id}`);
+      console.warn('Firestore document write err (fell back to local-only):', e);
     }
-  } else {
-    const current = await getDocumentAssets();
-    current.push(asset);
-    localStorage.setItem('huong_document_assets', JSON.stringify(current));
   }
 }
 
 export async function deleteDocumentAsset(assetId: string): Promise<void> {
   const pathName = 'documents';
+  
+  // Always update local storage first
+  try {
+    const local = localStorage.getItem('huong_document_assets');
+    const current: DocumentAsset[] = local ? JSON.parse(local) : [];
+    const filtered = current.filter(a => a.id !== assetId);
+    localStorage.setItem('huong_document_assets', JSON.stringify(filtered));
+  } catch (err) {
+    console.warn('LocalStorage delete document error:', err);
+  }
+
+  // Sync to database if available
   if (db) {
     try {
       await deleteDoc(doc(db, pathName, assetId));
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `${pathName}/${assetId}`);
+      console.warn('Firestore document delete err (fell back to local-only):', e);
     }
-  } else {
-    const current = await getDocumentAssets();
-    const filtered = current.filter(a => a.id !== assetId);
-    localStorage.setItem('huong_document_assets', JSON.stringify(filtered));
   }
 }
 
@@ -247,14 +344,11 @@ export async function getStudyNotes(): Promise<StudyNote[]> {
 
 export async function saveStudyNote(note: StudyNote): Promise<void> {
   const pathName = 'notes';
-  if (db) {
-    try {
-      await setDoc(doc(db, pathName, note.id), note);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `${pathName}/${note.id}`);
-    }
-  } else {
-    const current = await getStudyNotes();
+  
+  // Always write to local storage first
+  try {
+    const local = localStorage.getItem('huong_study_notes');
+    const current: StudyNote[] = local ? JSON.parse(local) : [];
     const idx = current.findIndex(n => n.id === note.id);
     if (idx > -1) {
       current[idx] = note;
@@ -262,21 +356,40 @@ export async function saveStudyNote(note: StudyNote): Promise<void> {
       current.push(note);
     }
     localStorage.setItem('huong_study_notes', JSON.stringify(current));
+  } catch (err) {
+    console.warn('LocalStorage save note error:', err);
+  }
+
+  // Sync to database if available
+  if (db) {
+    try {
+      await setDoc(doc(db, pathName, note.id), sanitizeNote(note));
+    } catch (e) {
+      console.warn('Firestore note write err (fell back to local-only):', e);
+    }
   }
 }
 
 export async function deleteStudyNote(noteId: string): Promise<void> {
   const pathName = 'notes';
+  
+  // Always update local storage first
+  try {
+    const local = localStorage.getItem('huong_study_notes');
+    const current: StudyNote[] = local ? JSON.parse(local) : [];
+    const filtered = current.filter(n => n.id !== noteId);
+    localStorage.setItem('huong_study_notes', JSON.stringify(filtered));
+  } catch (err) {
+    console.warn('LocalStorage delete note error:', err);
+  }
+
+  // Sync to database if available
   if (db) {
     try {
       await deleteDoc(doc(db, pathName, noteId));
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `${pathName}/${noteId}`);
+      console.warn('Firestore note delete err (fell back to local-only):', e);
     }
-  } else {
-    const current = await getStudyNotes();
-    const filtered = current.filter(n => n.id !== noteId);
-    localStorage.setItem('huong_study_notes', JSON.stringify(filtered));
   }
 }
 
@@ -319,14 +432,11 @@ export async function getStudySchedules(): Promise<StudySchedule[]> {
 
 export async function saveStudySchedule(event: StudySchedule): Promise<void> {
   const pathName = 'schedules';
-  if (db) {
-    try {
-      await setDoc(doc(db, pathName, event.id), event);
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `${pathName}/${event.id}`);
-    }
-  } else {
-    const current = await getStudySchedules();
+  
+  // Always write to local storage first
+  try {
+    const local = localStorage.getItem('huong_study_schedules');
+    const current: StudySchedule[] = local ? JSON.parse(local) : [];
     const idx = current.findIndex(s => s.id === event.id);
     if (idx > -1) {
       current[idx] = event;
@@ -334,21 +444,40 @@ export async function saveStudySchedule(event: StudySchedule): Promise<void> {
       current.push(event);
     }
     localStorage.setItem('huong_study_schedules', JSON.stringify(current));
+  } catch (err) {
+    console.warn('LocalStorage save schedule error:', err);
+  }
+
+  // Sync to database if available
+  if (db) {
+    try {
+      await setDoc(doc(db, pathName, event.id), sanitizeSchedule(event));
+    } catch (e) {
+      console.warn('Firestore schedule write err (fell back to local-only):', e);
+    }
   }
 }
 
 export async function deleteStudySchedule(eventId: string): Promise<void> {
   const pathName = 'schedules';
+  
+  // Always update local storage first
+  try {
+    const local = localStorage.getItem('huong_study_schedules');
+    const current: StudySchedule[] = local ? JSON.parse(local) : [];
+    const filtered = current.filter(s => s.id !== eventId);
+    localStorage.setItem('huong_study_schedules', JSON.stringify(filtered));
+  } catch (err) {
+    console.warn('LocalStorage delete schedule error:', err);
+  }
+
+  // Sync to database if available
   if (db) {
     try {
       await deleteDoc(doc(db, pathName, eventId));
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `${pathName}/${eventId}`);
+      console.warn('Firestore schedule delete err (fell back to local-only):', e);
     }
-  } else {
-    const current = await getStudySchedules();
-    const filtered = current.filter(s => s.id !== eventId);
-    localStorage.setItem('huong_study_schedules', JSON.stringify(filtered));
   }
 }
 
@@ -373,5 +502,171 @@ export async function clearAllFirebaseCollections(): Promise<void> {
     localStorage.removeItem('huong_document_assets');
     localStorage.removeItem('huong_study_notes');
     localStorage.removeItem('huong_study_schedules');
+  }
+}
+
+// 6. AUTOMATIC BIDIRECTIONAL LOCAL-CLOUD SYNC SYSTEM
+export async function synchronizeLocalAndCloud(): Promise<void> {
+  if (!db) return;
+  
+  try {
+    console.log("Starting automatic background Local-Cloud synchronization...");
+    
+    // --- 1. LESSON PROGRESS SYNC ---
+    const localProgressRaw = localStorage.getItem('huong_lessons_progress');
+    const localProgressList: LessonProgress[] = localProgressRaw ? JSON.parse(localProgressRaw) : [];
+    
+    // Fetch from Firebase
+    const firebaseProgressSnapshot = await getDocs(collection(db, 'progress'));
+    const firebaseProgressList: LessonProgress[] = [];
+    firebaseProgressSnapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      firebaseProgressList.push({
+        lessonId: docSnap.id,
+        completed: d.completed ?? false,
+        updatedAt: d.updatedAt ?? new Date().toISOString(),
+      });
+    });
+    
+    // Merge Strategy: Combine and choose the newest updatedAt
+    const progMap = new Map<string, LessonProgress>();
+    localProgressList.forEach(p => progMap.set(p.lessonId, p));
+    firebaseProgressList.forEach(fp => {
+      const existing = progMap.get(fp.lessonId);
+      if (!existing || new Date(fp.updatedAt) > new Date(existing.updatedAt)) {
+        progMap.set(fp.lessonId, fp);
+      }
+    });
+    
+    const mergedProgress = Array.from(progMap.values());
+    localStorage.setItem('huong_lessons_progress', JSON.stringify(mergedProgress));
+    
+    for (const prog of mergedProgress) {
+      const fbItem = firebaseProgressList.find(f => f.lessonId === prog.lessonId);
+      if (!fbItem || fbItem.completed !== prog.completed || fbItem.updatedAt !== prog.updatedAt) {
+        await setDoc(doc(db, 'progress', prog.lessonId), sanitizeProgress(prog));
+      }
+    }
+    
+    // --- 2. DOCUMENT ASSETS SYNC ---
+    const localAssetsRaw = localStorage.getItem('huong_document_assets');
+    const localAssetsList: DocumentAsset[] = localAssetsRaw ? JSON.parse(localAssetsRaw) : [];
+    
+    // Fetch from Firebase
+    const firebaseAssetsSnapshot = await getDocs(collection(db, 'documents'));
+    const firebaseAssetsList: DocumentAsset[] = [];
+    firebaseAssetsSnapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      firebaseAssetsList.push({
+        id: docSnap.id,
+        lessonId: d.lessonId,
+        title: d.title,
+        type: d.type,
+        url: d.url,
+        createdAt: d.createdAt || new Date().toISOString()
+      });
+    });
+    
+    const assetMap = new Map<string, DocumentAsset>();
+    localAssetsList.forEach(a => assetMap.set(a.id, a));
+    firebaseAssetsList.forEach(fa => {
+      const existing = assetMap.get(fa.id);
+      if (!existing || new Date(fa.createdAt) > new Date(existing.createdAt)) {
+        assetMap.set(fa.id, fa);
+      }
+    });
+    const mergedAssets = Array.from(assetMap.values());
+    localStorage.setItem('huong_document_assets', JSON.stringify(mergedAssets));
+    
+    for (const asset of mergedAssets) {
+      const fbItem = firebaseAssetsList.find(f => f.id === asset.id);
+      if (!fbItem) {
+        try {
+          await setDoc(doc(db, 'documents', asset.id), sanitizeDocument(asset));
+        } catch (e) {
+          console.warn(`Could not sync file ${asset.title} to Firestore. Large file?`, e);
+        }
+      }
+    }
+    
+    // --- 3. STUDY NOTES SYNC ---
+    const localNotesRaw = localStorage.getItem('huong_study_notes');
+    const localNotesList: StudyNote[] = localNotesRaw ? JSON.parse(localNotesRaw) : [];
+    
+    // Fetch from Firebase
+    const firebaseNotesSnapshot = await getDocs(collection(db, 'notes'));
+    const firebaseNotesList: StudyNote[] = [];
+    firebaseNotesSnapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      firebaseNotesList.push({
+        id: docSnap.id,
+        lessonId: d.lessonId || '',
+        content: d.content || '',
+        date: d.date || new Date().toISOString().split('T')[0],
+        time: d.time || new Date().toTimeString().split(' ')[0].substring(0, 5),
+        updatedAt: d.updatedAt || new Date().toISOString()
+      });
+    });
+    
+    const noteMap = new Map<string, StudyNote>();
+    localNotesList.forEach(n => noteMap.set(n.id, n));
+    firebaseNotesList.forEach(fn => {
+      const existing = noteMap.get(fn.id);
+      if (!existing || new Date(fn.updatedAt || fn.date) > new Date(existing.updatedAt || existing.date)) {
+        noteMap.set(fn.id, fn);
+      }
+    });
+    const mergedNotes = Array.from(noteMap.values());
+    localStorage.setItem('huong_study_notes', JSON.stringify(mergedNotes));
+    
+    for (const note of mergedNotes) {
+      const fbItem = firebaseNotesList.find(f => f.id === note.id);
+      if (!fbItem || fbItem.content !== note.content || fbItem.updatedAt !== note.updatedAt) {
+        await setDoc(doc(db, 'notes', note.id), sanitizeNote(note));
+      }
+    }
+    
+    // --- 4. STUDY SCHEDULE TIMETABLES SYNC ---
+    const localSchedulesRaw = localStorage.getItem('huong_study_schedules');
+    const localSchedulesList: StudySchedule[] = localSchedulesRaw ? JSON.parse(localSchedulesRaw) : [];
+    
+    // Fetch from Firebase
+    const firebaseSchedulesSnapshot = await getDocs(collection(db, 'schedules'));
+    const firebaseSchedulesList: StudySchedule[] = [];
+    firebaseSchedulesSnapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      firebaseSchedulesList.push({
+        id: docSnap.id,
+        title: d.title,
+        subject: d.subject,
+        lessonId: d.lessonId,
+        date: d.date || new Date().toISOString().split('T')[0],
+        startTime: d.startTime,
+        endTime: d.endTime,
+        completed: d.completed ?? false
+      });
+    });
+    
+    const scheduleMap = new Map<string, StudySchedule>();
+    localSchedulesList.forEach(s => scheduleMap.set(s.id, s));
+    firebaseSchedulesList.forEach(fs => {
+      const existing = scheduleMap.get(fs.id);
+      if (!existing || (fs.completed && !existing.completed)) {
+        scheduleMap.set(fs.id, fs);
+      }
+    });
+    const mergedSchedules = Array.from(scheduleMap.values());
+    localStorage.setItem('huong_study_schedules', JSON.stringify(mergedSchedules));
+    
+    for (const sched of mergedSchedules) {
+      const fbItem = firebaseSchedulesList.find(f => f.id === sched.id);
+      if (!fbItem || fbItem.completed !== sched.completed || fbItem.title !== sched.title) {
+        await setDoc(doc(db, 'schedules', sched.id), sanitizeSchedule(sched));
+      }
+    }
+    
+    console.log("Automatic Local-Cloud synchronization completed successfully!");
+  } catch (err) {
+    console.error("Failed automatic local-cloud sync:", err);
   }
 }

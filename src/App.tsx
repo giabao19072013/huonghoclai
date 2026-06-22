@@ -27,7 +27,8 @@ import {
   saveStudySchedule,
   deleteStudySchedule,
   isUsingFirebase,
-  clearAllFirebaseCollections
+  clearAllFirebaseCollections,
+  synchronizeLocalAndCloud
 } from './firebase';
 
 export default function App() {
@@ -149,6 +150,16 @@ export default function App() {
     const loadAllData = async () => {
       try {
         setLoading(true);
+
+        // Automatic bi-directional synchronization on initial load or browser reloads!
+        if (isUsingFirebase()) {
+          try {
+            await synchronizeLocalAndCloud();
+          } catch (syncErr) {
+            console.warn('Background dynamic auto-sync had an initialization issue:', syncErr);
+          }
+        }
+
         const [progressData, assetsData, notesData, schedulesData] = await Promise.all([
           getLessonsProgress(),
           getDocumentAssets(),

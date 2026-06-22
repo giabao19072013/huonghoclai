@@ -20,6 +20,11 @@ export interface StudyNote {
   date: string; // YYYY-MM-DD format
   time: string; // HH:MM format
   updatedAt: string;
+  fileAttachment?: {
+    name: string;
+    url: string; // base64 or storage url
+    type: string; // MIME type or category
+  };
 }
 
 export interface StudySchedule {

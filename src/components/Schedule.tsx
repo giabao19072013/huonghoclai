@@ -24,6 +24,7 @@ export default function Schedule({
 }: ScheduleProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<StudySchedule | null>(null);
 
   // Form states
   const [formTitle, setFormTitle] = useState('');
@@ -173,18 +174,18 @@ export default function Schedule({
     setFormLessonId('');
   };
 
-  // Return the styling background matching subject configuration
+  // Return the styling background matching subject configuration (Light pastel colors)
   const getSubjectColorStyles = (subject: string, completed?: boolean) => {
     const isMuted = completed;
     if (isMuted) {
-      return 'bg-zinc-900/60 border-zinc-800 text-zinc-500 opacity-40 line-through';
+      return 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 line-through';
     }
     switch (subject) {
-      case 'Toán': return 'bg-rose-950/50 border-rose-900/70 text-rose-300';
-      case 'Hóa': return 'bg-amber-950/50 border-amber-900/70 text-amber-300';
-      case 'Sinh': return 'bg-emerald-950/50 border-emerald-900/70 text-emerald-300';
-      case 'Lý': return 'bg-sky-950/50 border-sky-900/70 text-sky-300';
-      default: return 'bg-zinc-800 border-zinc-700 text-zinc-200';
+      case 'Toán': return 'bg-rose-50 border-rose-200 text-rose-700';
+      case 'Hóa': return 'bg-amber-50 border-amber-200 text-amber-700';
+      case 'Sinh': return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+      case 'Lý': return 'bg-sky-50 border-sky-200 text-sky-700';
+      default: return 'bg-slate-50 border-slate-205 text-slate-700';
     }
   };
 
@@ -462,10 +463,14 @@ export default function Schedule({
                     return (
                       <div
                         key={evt.id}
-                        onClick={(e) => e.stopPropagation()} // Avoid triggering cell click event
-                        className={`p-1 md:p-1.5 rounded-lg border text-[9px] md:text-[10px] leading-tight flex flex-col gap-0.5 relative group/item transition-all ${styleClasses}`}
+                        id={`schedule-item-${evt.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Avoid triggering cell click event
+                          setSelectedEvent(evt);
+                        }}
+                        className={`p-1 md:p-1.5 rounded-lg border text-[9px] md:text-[10px] leading-tight flex flex-col gap-0.5 relative group/item transition-all cursor-pointer hover:scale-102 hover:shadow-xs hover:brightness-95 ${styleClasses}`}
                       >
-                        <div className="flex items-start justify-between gap-1 pr-1.5">
+                        <div className="flex items-start justify-between gap-1 pr-1">
                           <span 
                             className="font-bold truncate select-all flex-1" 
                             title={evt.title}
@@ -475,8 +480,12 @@ export default function Schedule({
                           
                           {/* Completed status check trigger */}
                           <button
-                            onClick={() => onToggleScheduleCompleted(evt.id)}
-                            className="w-3.5 h-3.5 rounded bg-white border border-slate-205 flex items-center justify-center text-[#800F2F] hover:border-[#800F2F] flex-shrink-0 cursor-pointer"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleScheduleCompleted(evt.id);
+                            }}
+                            className="w-4 h-4 rounded bg-white border border-slate-200 flex items-center justify-center text-[#800F2F] hover:border-[#800F2F] flex-shrink-0 cursor-pointer"
                             title={evt.completed ? 'Đánh dấu chưa học' : 'Hoàn thành buổi học'}
                           >
                             {evt.completed && <Check size={8} className="text-[#800F2F] stroke-[4px]" />}
@@ -488,6 +497,7 @@ export default function Schedule({
                           
                           {/* Trash button (Fully functional, easily clickable for everyone with unlock trigger) */}
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (!isAdmin) {
@@ -498,10 +508,10 @@ export default function Schedule({
                                 onDeleteSchedule(evt.id);
                               }
                             }}
-                            className="text-slate-400 hover:text-red-600 p-0.5 rounded transition-all flex items-center justify-center cursor-pointer"
+                            className="text-rose-400 hover:text-red-600 p-0.5 hover:bg-rose-50 rounded transition-all flex items-center justify-center cursor-pointer"
                             title="Xóa buổi học"
                           >
-                            <Trash2 size={10} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>
@@ -536,6 +546,111 @@ export default function Schedule({
         </div>
 
       </div>
+
+      {/* 4. DETAIL VIEW MODAL FOR SELECTED SCHEDULE EVENT WITH FLUID GORGEOUS DESIGN */}
+      {selectedEvent && (
+        <div id="schedule-detail-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setSelectedEvent(null)} 
+            className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs" 
+          />
+          
+          <div className="relative bg-white border border-[#FFE1E5] p-6 rounded-3xl max-w-sm w-full shadow-2xl animate-popIn space-y-4 z-10 text-xs text-slate-800">
+            <div className="flex justify-between items-center pb-2.5 border-b border-rose-100">
+              <span className={`text-[9px] font-[sans] font-black uppercase tracking-widest px-2.5 py-1 rounded-md border ${
+                selectedEvent.subject === 'Toán' ? 'text-rose-600 bg-rose-50 border-rose-100' :
+                selectedEvent.subject === 'Hóa' ? 'text-amber-600 bg-amber-50 border-amber-100' :
+                selectedEvent.subject === 'Sinh' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
+                selectedEvent.subject === 'Lý' ? 'text-sky-600 bg-sky-50 border-sky-100' :
+                'text-slate-600 bg-slate-50 border-slate-100'
+              }`}>
+                Môn học: {selectedEvent.subject}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setSelectedEvent(null)}
+                className="text-slate-400 hover:text-[#800F2F] text-sm font-bold p-1 hover:bg-rose-50 rounded-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider font-semibold">Nội dung học ôn</span>
+                <h4 className="text-xs font-bold text-slate-800 leading-snug mt-0.5">{selectedEvent.title}</h4>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5 pt-1">
+                <div>
+                  <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider">Ngày học</span>
+                  <p className="text-[11px] font-bold text-slate-700 font-mono flex items-center gap-1 mt-0.5">
+                    <Calendar size={12} className="text-[#800F2F]" />
+                    {selectedEvent.date}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider font-semibold">Thời gian</span>
+                  <p className="text-[11px] font-bold text-slate-705 font-mono flex items-center gap-1 mt-0.5">
+                    <Clock size={12} className="text-[#800F2F]" />
+                    {selectedEvent.startTime} - {selectedEvent.endTime || 'Kết thúc'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                <span className="text-[9px] font-mono uppercase text-slate-400 block tracking-wider flex-1">
+                  Trạng thái học tập:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleScheduleCompleted(selectedEvent.id);
+                    setSelectedEvent(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
+                    selectedEvent.completed
+                      ? 'bg-emerald-50 border-emerald-250 text-emerald-700'
+                      : 'bg-amber-50 border-amber-250 text-amber-700'
+                  }`}
+                >
+                  <Check size={11} className={selectedEvent.completed ? 'opacity-100 font-bold' : 'opacity-30'} />
+                  {selectedEvent.completed ? 'Đã hoàn thành' : 'Chưa ôn học'}
+                </button>
+              </div>
+            </div>
+
+            {/* ACTION TRIGGERS IN DETAIL VIEW (Xóa trực tiếp dán) */}
+            <div className="flex gap-2 pt-3 border-t border-rose-100">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isAdmin) {
+                    triggerUnlockModal();
+                    return;
+                  }
+                  if (confirm('Bạn chắc chắn muốn xóa vĩnh viễn buổi học này khỏi lịch trình?')) {
+                    onDeleteSchedule(selectedEvent.id);
+                    setSelectedEvent(null);
+                  }
+                }}
+                className="flex-1 py-2 rounded-xl text-center text-xs font-bold bg-white text-rose-700 border border-rose-200 hover:bg-rose-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer font-sans"
+              >
+                <Trash2 size={13} />
+                Xóa khỏi lịch học
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="px-5 py-2 rounded-xl text-center text-xs font-bold bg-[#800F2F] text-white hover:bg-[#A71E40] transition-colors cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -74,7 +74,10 @@ let db: any = null;
 if (isFirebaseEnabled) {
   try {
     const app = getApps().length === 0 ? initializeApp(activeConfig) : getApp();
-    db = getFirestore(app);
+    const dbId = activeConfig.firestoreDatabaseId && activeConfig.firestoreDatabaseId !== '(default)' 
+      ? activeConfig.firestoreDatabaseId 
+      : undefined;
+    db = dbId ? getFirestore(app, dbId) : getFirestore(app);
     
     // Quick validation of connection to Firestore as mandated
     const testConnection = async () => {

@@ -9,7 +9,8 @@ import {
   Search, 
   Filter, 
   ExternalLink,
-  BookOpen
+  BookOpen,
+  Upload
 } from 'lucide-react';
 import { Lesson } from '../data/defaultLessons';
 import { DocumentAsset } from '../types';
@@ -49,6 +50,36 @@ export default function Documents({
     }
   }, [lessons, formLessonId]);
 
+  // Local file upload support (Base64 offline caching)
+  const handleLocalFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Prefill title from filename (remove extension)
+    const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+    setFormTitle(nameWithoutExt);
+
+    // Auto classify document type
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (['pdf'].includes(ext || '')) {
+      setFormType('pdf');
+    } else if (['doc', 'docx', 'txt', 'rtf'].includes(ext || '')) {
+      setFormType('word');
+    } else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext || '')) {
+      setFormType('image');
+    } else {
+      setFormType('video');
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handle Form Submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,9 +93,9 @@ export default function Documents({
       return;
     }
 
-    // Verify correct resource link URL structure
+    // Verify correct resource link URL structure (skip Base64 data)
     let formattedUrl = formUrl.trim();
-    if (!/^https?:\/\//i.test(formattedUrl)) {
+    if (!formattedUrl.startsWith('data:') && !/^https?:\/\//i.test(formattedUrl)) {
       formattedUrl = 'https://' + formattedUrl;
     }
 
@@ -166,12 +197,39 @@ export default function Documents({
               <label className="block text-[11px] font-bold text-[#800F2F]/80 uppercase font-mono mb-1.5">Đường dẫn tài liệu (URL)</label>
               <input
                 type="text"
-                placeholder="Ví dụ: youtube.com/watch?... hoặc drive.google.com/..."
+                placeholder="Dán link drive/youtube hoặc tự động điền bằng cách Tải file dưới đây..."
                 value={formUrl}
                 onChange={(e) => setFormUrl(e.target.value)}
                 required
                 className="w-full px-4 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white transition-all text-slate-800"
               />
+            </div>
+          </div>
+
+          {/* DUAL MODE UPLOAD DIRECTLY FROM DEVICE SECTION */}
+          <div className="bg-[#FFF5F7] p-4 rounded-2xl border border-dashed border-[#FFE1E5] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-bold text-[#800F2F] uppercase tracking-wide font-mono block">✦ Đăng tệp trực tiếp từ máy tính</span>
+              <p className="text-[9px] text-slate-500">Hỗ trợ PDF, Word (.docx), hình ảnh chuyên sâu... Hệ thống tự nhận diện thể loại!</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="px-4 py-2 rounded-xl bg-[#800F2F] hover:bg-[#A71E40] text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5">
+                <Upload size={12} />
+                Chọn File nội bộ...
+                <input 
+                  type="file" 
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.txt"
+                  onChange={handleLocalFileUpload}
+                  className="hidden"
+                />
+              </label>
+
+              {formUrl && (
+                <span className="text-[9px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-250 px-2.5 py-1.5 rounded-lg max-w-[170px] truncate" title={formUrl}>
+                  ✓ Đã chọn ({formUrl.startsWith('data:') ? 'Tệp Cục Bộ' : 'Url Ngoài'})
+                </span>
+              )}
             </div>
           </div>
 

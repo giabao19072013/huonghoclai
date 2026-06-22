@@ -8,7 +8,8 @@ import {
   Clock, 
   Settings, 
   X,
-  Menu
+  Menu,
+  Timer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -35,6 +36,7 @@ export default function Sidebar({
     { id: 'notes', label: 'Ghi chú', icon: BookOpen },
     { id: 'schedule', label: 'Lịch học', icon: Calendar },
     { id: 'pomodoro', label: 'Pomodoro', icon: Clock },
+    { id: 'quiz', label: 'Giả lập kiểm tra', icon: Timer },
     { id: 'settings', label: 'Cài đặt', icon: Settings },
   ];
 

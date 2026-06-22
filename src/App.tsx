@@ -11,6 +11,7 @@ import Notes from './components/Notes';
 import Schedule from './components/Schedule';
 import Pomodoro from './components/Pomodoro';
 import Settings from './components/Settings';
+import QuizSimulation from './components/QuizSimulation';
 import Footer from './components/Footer';
 
 // Import Firebase API Methods
@@ -471,6 +472,10 @@ export default function App() {
                   sessionsCompleted={pomodoroSessionsCompleted}
                   setSessionsCompleted={setPomodoroSessionsCompleted}
                 />
+              )}
+
+              {activeTab === 'quiz' && (
+                <QuizSimulation />
               )}
 
               {activeTab === 'settings' && (

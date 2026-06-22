@@ -512,11 +512,15 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
   try {
     console.log("Starting automatic background Local-Cloud synchronization...");
     
+    // We check if we have already migrated offline data to the cloud.
+    // If we have, or after initial run, Firestore acts as the absolute source of truth.
+    // This stops the classic resurrection loop where local deletes or remote deletes got undone by the other party.
+    const isMigrated = localStorage.getItem('HUONG_FIREBASE_MIGRATED_V3') === 'true';
+
     // --- 1. LESSON PROGRESS SYNC ---
     const localProgressRaw = localStorage.getItem('huong_lessons_progress');
     const localProgressList: LessonProgress[] = localProgressRaw ? JSON.parse(localProgressRaw) : [];
     
-    // Fetch from Firebase
     const firebaseProgressSnapshot = await getDocs(collection(db, 'progress'));
     const firebaseProgressList: LessonProgress[] = [];
     firebaseProgressSnapshot.forEach((docSnap) => {
@@ -528,31 +532,23 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
       });
     });
     
-    // Merge Strategy: Combine and choose the newest updatedAt
-    const progMap = new Map<string, LessonProgress>();
-    localProgressList.forEach(p => progMap.set(p.lessonId, p));
-    firebaseProgressList.forEach(fp => {
-      const existing = progMap.get(fp.lessonId);
-      if (!existing || new Date(fp.updatedAt) > new Date(existing.updatedAt)) {
-        progMap.set(fp.lessonId, fp);
-      }
-    });
-    
-    const mergedProgress = Array.from(progMap.values());
-    localStorage.setItem('huong_lessons_progress', JSON.stringify(mergedProgress));
-    
-    for (const prog of mergedProgress) {
-      const fbItem = firebaseProgressList.find(f => f.lessonId === prog.lessonId);
-      if (!fbItem || fbItem.completed !== prog.completed || fbItem.updatedAt !== prog.updatedAt) {
-        await setDoc(doc(db, 'progress', prog.lessonId), sanitizeProgress(prog));
+    if (!isMigrated) {
+      // Migrate offline items to cloud once if they don't exist yet
+      for (const prog of localProgressList) {
+        const exists = firebaseProgressList.some(f => f.lessonId === prog.lessonId);
+        if (!exists) {
+          await setDoc(doc(db, 'progress', prog.lessonId), sanitizeProgress(prog));
+          firebaseProgressList.push(prog);
+        }
       }
     }
+    // Update local cache to match exactly the cloud's truths
+    localStorage.setItem('huong_lessons_progress', JSON.stringify(firebaseProgressList));
     
     // --- 2. DOCUMENT ASSETS SYNC ---
     const localAssetsRaw = localStorage.getItem('huong_document_assets');
     const localAssetsList: DocumentAsset[] = localAssetsRaw ? JSON.parse(localAssetsRaw) : [];
     
-    // Fetch from Firebase
     const firebaseAssetsSnapshot = await getDocs(collection(db, 'documents'));
     const firebaseAssetsList: DocumentAsset[] = [];
     firebaseAssetsSnapshot.forEach((docSnap) => {
@@ -567,33 +563,21 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
       });
     });
     
-    const assetMap = new Map<string, DocumentAsset>();
-    localAssetsList.forEach(a => assetMap.set(a.id, a));
-    firebaseAssetsList.forEach(fa => {
-      const existing = assetMap.get(fa.id);
-      if (!existing || new Date(fa.createdAt) > new Date(existing.createdAt)) {
-        assetMap.set(fa.id, fa);
-      }
-    });
-    const mergedAssets = Array.from(assetMap.values());
-    localStorage.setItem('huong_document_assets', JSON.stringify(mergedAssets));
-    
-    for (const asset of mergedAssets) {
-      const fbItem = firebaseAssetsList.find(f => f.id === asset.id);
-      if (!fbItem) {
-        try {
+    if (!isMigrated) {
+      for (const asset of localAssetsList) {
+        const exists = firebaseAssetsList.some(f => f.id === asset.id);
+        if (!exists) {
           await setDoc(doc(db, 'documents', asset.id), sanitizeDocument(asset));
-        } catch (e) {
-          console.warn(`Could not sync file ${asset.title} to Firestore. Large file?`, e);
+          firebaseAssetsList.push(asset);
         }
       }
     }
+    localStorage.setItem('huong_document_assets', JSON.stringify(firebaseAssetsList));
     
     // --- 3. STUDY NOTES SYNC ---
     const localNotesRaw = localStorage.getItem('huong_study_notes');
     const localNotesList: StudyNote[] = localNotesRaw ? JSON.parse(localNotesRaw) : [];
     
-    // Fetch from Firebase
     const firebaseNotesSnapshot = await getDocs(collection(db, 'notes'));
     const firebaseNotesList: StudyNote[] = [];
     firebaseNotesSnapshot.forEach((docSnap) => {
@@ -608,29 +592,36 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
       });
     });
     
-    const noteMap = new Map<string, StudyNote>();
-    localNotesList.forEach(n => noteMap.set(n.id, n));
-    firebaseNotesList.forEach(fn => {
-      const existing = noteMap.get(fn.id);
-      if (!existing || new Date(fn.updatedAt || fn.date) > new Date(existing.updatedAt || existing.date)) {
-        noteMap.set(fn.id, fn);
-      }
-    });
-    const mergedNotes = Array.from(noteMap.values());
-    localStorage.setItem('huong_study_notes', JSON.stringify(mergedNotes));
-    
-    for (const note of mergedNotes) {
-      const fbItem = firebaseNotesList.find(f => f.id === note.id);
-      if (!fbItem || fbItem.content !== note.content || fbItem.updatedAt !== note.updatedAt) {
-        await setDoc(doc(db, 'notes', note.id), sanitizeNote(note));
+    // TARGETED DETECT & DESTROY JUNK: check for old "kk" or blank placeholder notes and delete them from Firestore!
+    const cleanNotesList: StudyNote[] = [];
+    for (const note of firebaseNotesList) {
+      const contentLower = (note.content || '').toLowerCase();
+      const isJunk = contentLower.includes('kk') || contentLower.trim() === 'kk' || contentLower.trim() === '';
+      if (isJunk) {
+        console.log(`Auto purges junk note from Firestore: ${note.id}`);
+        await deleteDoc(doc(db, 'notes', note.id));
+      } else {
+        cleanNotesList.push(note);
       }
     }
+    
+    if (!isMigrated) {
+      for (const note of localNotesList) {
+        const exists = cleanNotesList.some(f => f.id === note.id);
+        const contentLower = (note.content || '').toLowerCase();
+        const isJunk = contentLower.includes('kk') || contentLower.trim() === 'kk' || contentLower.trim() === '';
+        if (!exists && !isJunk) {
+          await setDoc(doc(db, 'notes', note.id), sanitizeNote(note));
+          cleanNotesList.push(note);
+        }
+      }
+    }
+    localStorage.setItem('huong_study_notes', JSON.stringify(cleanNotesList));
     
     // --- 4. STUDY SCHEDULE TIMETABLES SYNC ---
     const localSchedulesRaw = localStorage.getItem('huong_study_schedules');
     const localSchedulesList: StudySchedule[] = localSchedulesRaw ? JSON.parse(localSchedulesRaw) : [];
     
-    // Fetch from Firebase
     const firebaseSchedulesSnapshot = await getDocs(collection(db, 'schedules'));
     const firebaseSchedulesList: StudySchedule[] = [];
     firebaseSchedulesSnapshot.forEach((docSnap) => {
@@ -647,25 +638,35 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
       });
     });
     
-    const scheduleMap = new Map<string, StudySchedule>();
-    localSchedulesList.forEach(s => scheduleMap.set(s.id, s));
-    firebaseSchedulesList.forEach(fs => {
-      const existing = scheduleMap.get(fs.id);
-      if (!existing || (fs.completed && !existing.completed)) {
-        scheduleMap.set(fs.id, fs);
-      }
-    });
-    const mergedSchedules = Array.from(scheduleMap.values());
-    localStorage.setItem('huong_study_schedules', JSON.stringify(mergedSchedules));
-    
-    for (const sched of mergedSchedules) {
-      const fbItem = firebaseSchedulesList.find(f => f.id === sched.id);
-      if (!fbItem || fbItem.completed !== sched.completed || fbItem.title !== sched.title) {
-        await setDoc(doc(db, 'schedules', sched.id), sanitizeSchedule(sched));
+    // TARGETED DETECT & DESTROY JUNK: check for "học nhóm", "lượng giác", or "kk" in schedules and delete them from Firestore!
+    const cleanSchedulesList: StudySchedule[] = [];
+    for (const sched of firebaseSchedulesList) {
+      const titleLower = (sched.title || '').toLowerCase();
+      const isJunk = titleLower.includes('học nhóm') || titleLower.includes('lượng giác') || titleLower.includes('kk') || titleLower.trim() === '';
+      if (isJunk) {
+        console.log(`Auto purges junk schedule from Firestore: ${sched.id} - ${sched.title}`);
+        await deleteDoc(doc(db, 'schedules', sched.id));
+      } else {
+        cleanSchedulesList.push(sched);
       }
     }
     
-    console.log("Automatic Local-Cloud synchronization completed successfully!");
+    if (!isMigrated) {
+      for (const sched of localSchedulesList) {
+        const exists = cleanSchedulesList.some(f => f.id === sched.id);
+        const titleLower = (sched.title || '').toLowerCase();
+        const isJunk = titleLower.includes('học nhóm') || titleLower.includes('lượng giác') || titleLower.includes('kk') || titleLower.trim() === '';
+        if (!exists && !isJunk) {
+          await setDoc(doc(db, 'schedules', sched.id), sanitizeSchedule(sched));
+          cleanSchedulesList.push(sched);
+        }
+      }
+    }
+    localStorage.setItem('huong_study_schedules', JSON.stringify(cleanSchedulesList));
+    
+    // Set migration flag to tell the app subsequent reloads should just mirror current cloud state
+    localStorage.setItem('HUONG_FIREBASE_MIGRATED_V3', 'true');
+    console.log("Automatic Local-Cloud synchronization & active cleanup completed successfully!");
   } catch (err) {
     console.error("Failed automatic local-cloud sync:", err);
   }

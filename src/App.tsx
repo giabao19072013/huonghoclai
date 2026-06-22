@@ -46,6 +46,23 @@ export default function App() {
   const [schedules, setSchedules] = useState<StudySchedule[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Profile customization states loaded from localStorage
+  const [profileName, setProfileName] = useState(() => localStorage.getItem('HUONG_PROFILE_NAME') || 'Hương');
+  const [profileExamName, setProfileExamName] = useState(() => localStorage.getItem('HUONG_PROFILE_EXAM_NAME') || 'Tốt nghiệp THPT 2028');
+  const [profileExamDate, setProfileExamDate] = useState(() => localStorage.getItem('HUONG_PROFILE_EXAM_DATE') || '2028-06-26');
+  const [profileGoal, setProfileGoal] = useState(() => localStorage.getItem('HUONG_PROFILE_GOAL') || 'Khúc xạ · ĐH Y khoa Phạm Ngọc Thạch – 25 điểm');
+
+  const handleUpdateProfile = (name: string, examName: string, examDate: string, goal: string) => {
+    setProfileName(name);
+    setProfileExamName(examName);
+    setProfileExamDate(examDate);
+    setProfileGoal(goal);
+    localStorage.setItem('HUONG_PROFILE_NAME', name);
+    localStorage.setItem('HUONG_PROFILE_EXAM_NAME', examName);
+    localStorage.setItem('HUONG_PROFILE_EXAM_DATE', examDate);
+    localStorage.setItem('HUONG_PROFILE_GOAL', goal);
+  };
+
   // === COMMONLY ACCESSED POMODORO SHARED STATE ENGINE ===
   const [pomodoroTimeLeft, setPomodoroTimeLeft] = useState(25 * 60);
   const [pomodoroIsRunning, setPomodoroIsRunning] = useState(false);
@@ -358,6 +375,8 @@ export default function App() {
           pomodoroIsRunning={pomodoroIsRunning}
           pomodoroMode={pomodoroMode}
           onTimerClick={() => setActiveTab('pomodoro')}
+          profileName={profileName}
+          profileExamName={profileExamName}
         />
 
         {/* C. Dynamic View Routers container */}
@@ -375,6 +394,10 @@ export default function App() {
                   progress={progress}
                   schedules={schedules}
                   setActiveTab={setActiveTab}
+                  profileExamDate={profileExamDate}
+                  profileGoal={profileGoal}
+                  profileName={profileName}
+                  profileExamName={profileExamName}
                 />
               )}
 
@@ -447,6 +470,11 @@ export default function App() {
                   onSaveFirebaseConfig={handleSaveFirebaseConfig}
                   onResetFirebaseConfig={handleResetFirebaseConfig}
                   onClearAllData={handleClearAllData}
+                  profileName={profileName}
+                  profileExamName={profileExamName}
+                  profileExamDate={profileExamDate}
+                  profileGoal={profileGoal}
+                  onUpdateProfile={handleUpdateProfile}
                 />
               )}
             </>

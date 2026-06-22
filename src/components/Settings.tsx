@@ -9,6 +9,11 @@ interface SettingsProps {
   onSaveFirebaseConfig: (config: FirebaseConfig) => void;
   onResetFirebaseConfig: () => void;
   onClearAllData: () => Promise<void>;
+  profileName: string;
+  profileExamName: string;
+  profileExamDate: string;
+  profileGoal: string;
+  onUpdateProfile: (name: string, examName: string, examDate: string, goal: string) => void;
 }
 
 export default function Settings({
@@ -17,11 +22,23 @@ export default function Settings({
   onLock,
   onSaveFirebaseConfig,
   onResetFirebaseConfig,
-  onClearAllData
+  onClearAllData,
+  profileName,
+  profileExamName,
+  profileExamDate,
+  profileGoal,
+  onUpdateProfile
 }: SettingsProps) {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
   const [pinSuccess, setPinSuccess] = useState(false);
+
+  // Profile local states
+  const [profileNameInput, setProfileNameInput] = useState(profileName);
+  const [profileExamNameInput, setProfileExamNameInput] = useState(profileExamName);
+  const [profileExamDateInput, setProfileExamDateInput] = useState(profileExamDate);
+  const [profileGoalInput, setProfileGoalInput] = useState(profileGoal);
+  const [profileSuccess, setProfileSuccess] = useState(false);
 
   // Firebase configurations states
   const [apiKey, setApiKey] = useState('');
@@ -67,6 +84,20 @@ export default function Settings({
     }
   };
 
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateProfile(
+      profileNameInput.trim() !== '' ? profileNameInput.trim() : 'Hương',
+      profileExamNameInput.trim() !== '' ? profileExamNameInput.trim() : 'Tốt nghiệp THPT 2028',
+      profileExamDateInput.trim() !== '' ? profileExamDateInput.trim() : '2028-06-26',
+      profileGoalInput.trim() !== '' ? profileGoalInput.trim() : 'Khúc xạ · ĐH Y khoa Phạm Ngọc Thạch – 25 điểm'
+    );
+    setProfileSuccess(true);
+    setTimeout(() => {
+      setProfileSuccess(false);
+    }, 3000);
+  };
+
   const handleConfigSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const config: FirebaseConfig = {
@@ -108,22 +139,89 @@ export default function Settings({
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT PANEL: ADMIN SIGN IN / PIN CODE CONTROL (5 Columns) */}
-        <div id="settings-pin-control" className="lg:col-span-5 bg-white p-6 rounded-3xl border border-[#FFE1E5] flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center gap-2 text-[#800F2F] pb-3 border-b border-[#FFF0F2] mb-5">
+        {/* LEFT COLUMN: BOTH PROFILE ACTIONS & SYSTEM PERMISSIONS (5 Columns) */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* PROFILE ACTIONS CARD WITH LIGHT BEAUTIFUL STYLE DESIGN */}
+          <div id="settings-profile-card" className="bg-white p-6 rounded-3xl border border-[#FFE1E5] shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-[#800F2F] pb-3 border-b border-[#FFF0F2]">
+              <User size={18} />
+              <h3 className="font-serif font-black text-sm">Cài đặt Cá nhân</h3>
+            </div>
+            
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Tên Sĩ Tử</label>
+                <input
+                  type="text"
+                  value={profileNameInput}
+                  onChange={(e) => setProfileNameInput(e.target.value)}
+                  placeholder="Nhập tên của bạn (ví dụ: Hương)..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Tên Kỳ Thi Mục Tiêu</label>
+                <input
+                  type="text"
+                  value={profileExamNameInput}
+                  onChange={(e) => setProfileExamNameInput(e.target.value)}
+                  placeholder="Ví dụ: Tốt nghiệp THPT 2028..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Ngày Thi Đếm Ngược</label>
+                <input
+                  type="date"
+                  value={profileExamDateInput}
+                  onChange={(e) => setProfileExamDateInput(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white text-slate-800 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Mục Tiêu & Động Lực</label>
+                <input
+                  type="text"
+                  value={profileGoalInput}
+                  onChange={(e) => setProfileGoalInput(e.target.value)}
+                  placeholder="Ví dụ: ĐH Y khoa Phạm Ngọc Thạch – 25 điểm..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white text-slate-800"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 px-4 rounded-xl text-xs font-bold bg-[#800F2F] text-white hover:bg-[#A71E40] transition-colors cursor-pointer shadow-sm shadow-[#800F2F]/10"
+              >
+                Cập nhật Góc học tập
+              </button>
+
+              {profileSuccess && (
+                <p className="text-[10px] font-bold text-center text-emerald-600 animate-pulse">
+                  ✓ Lưu hồ sơ cá nhân thành công!
+                </p>
+              )}
+            </form>
+          </div>
+
+          <div id="settings-pin-control" className="bg-white p-6 rounded-3xl border border-[#FFE1E5] shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-[#800F2F] pb-3 border-b border-[#FFF0F2]">
               <ShieldCheck size={18} />
               <h3 className="font-serif font-black text-sm">Phân quyền Hệ thống</h3>
             </div>
 
             {isAdmin ? (
               <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl space-y-4 text-center">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
                   ✓
                 </div>
                 <div>
                   <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wider">Đã mở Khóa Quyền Admin</h4>
-                  <p className="text-[11px] text-emerald-600 mt-1">Chào buổi học tốt, Hương! Bạn có toàn quyền thêm bài học, chỉnh sửa lộ trình, tải lên tài liệu và ghi chú nhật ký học tập.</p>
+                  <p className="text-[11px] text-emerald-600 mt-1">Chào buổi học tốt, sĩ tử! Bạn có toàn quyền thêm bài học, chỉnh sửa lộ trình, tải lên tài liệu và ghi chú nhật ký học tập.</p>
                 </div>
                 <button
                   id="lock-admin-btn-settings"
@@ -201,14 +299,15 @@ export default function Settings({
                 )}
               </form>
             )}
+
+            {/* Slogan */}
+            <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+              <span className="text-[10px] font-mono text-slate-400 block tracking-wide">
+                Mục tiêu học tập: <strong>Độ đại học Y dược Phạm Ngọc Thạch</strong>
+              </span>
+            </div>
           </div>
 
-          {/* Slogan */}
-          <div className="mt-8 pt-4 border-t border-slate-50 text-center">
-            <span className="text-[10px] font-mono text-slate-400 block tracking-wide">
-              Mục tiêu học tập: <strong>Độ đại học Y dược</strong>
-            </span>
-          </div>
         </div>
 
         {/* RIGHT PANEL: DYNAMIC FIREBASE CONFIG REGISTRY (7 Columns) */}

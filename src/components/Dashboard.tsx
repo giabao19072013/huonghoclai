@@ -8,22 +8,31 @@ interface DashboardProps {
   progress: LessonProgress[];
   schedules: StudySchedule[];
   setActiveTab: (tab: string) => void;
+  profileExamDate: string;
+  profileGoal: string;
+  profileName: string;
+  profileExamName: string;
 }
 
 export default function Dashboard({ 
   lessons, 
   progress, 
   schedules, 
-  setActiveTab 
+  setActiveTab,
+  profileExamDate,
+  profileGoal,
+  profileName,
+  profileExamName
 }: DashboardProps) {
   const [countdownDays, setCountdownDays] = useState(0);
   const [todayString, setTodayString] = useState('');
   const [todaySchedules, setTodaySchedules] = useState<StudySchedule[]>([]);
 
-  // 1. Calculate Exam Countdown Days dynamically
+  // 1. Calculate Exam Countdown Days dynamically based on custom user settings
   useEffect(() => {
     const calculateCountdown = () => {
-      const examDate = new Date('2028-06-26T00:00:00');
+      const examDateStr = profileExamDate || '2028-06-26';
+      const examDate = new Date(`${examDateStr}T00:00:00`);
       const now = new Date();
       
       // Reset hours to capture full days exactly
@@ -40,7 +49,7 @@ export default function Dashboard({
     // Update every hour
     const interval = setInterval(calculateCountdown, 3600000);
     return () => clearInterval(interval);
-  }, []);
+  }, [profileExamDate]);
 
   // 2. Fetch today's date formatted in Vietnamese & query today's schedules
   useEffect(() => {
@@ -133,17 +142,17 @@ export default function Dashboard({
         
         <div id="countdown-left-stats" className="z-10 text-center md:text-left">
           <span className="text-xs uppercase tracking-widest font-mono text-pink-200 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
-            KỲ THI TỐT NGHIỆP THPT
+            {profileExamName}
           </span>
           <h2 className="text-3xl md:text-4xl font-serif font-bold mt-3 leading-tight">
             Đếm ngược ngày vinh quang
           </h2>
-          <p className="text-sm text-pink-100 mt-2 font-medium max-w-md flex items-center gap-1.5 justify-center md:justify-start">
+          <p className="text-sm text-pink-100 mt-2 font-medium max-w-lg flex items-center gap-1.5 justify-center md:justify-start">
             <GraduationCap size={16} />
-            Mục tiêu: <span className="font-bold underline decoration-dotted">ĐH Y khoa Phạm Ngọc Thạch — 25 điểm</span>
+            Mục tiêu: <span className="font-bold underline decoration-dotted">{profileGoal}</span>
           </p>
           <div className="mt-4 text-xs font-mono text-pink-200">
-            Môn chuyên biệt: Khúc xạ nhãn khoa 🎯
+            Góc học tập của sĩ tử {profileName} 🎯
           </div>
         </div>
 

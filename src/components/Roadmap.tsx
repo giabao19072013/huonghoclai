@@ -77,11 +77,11 @@ export default function Roadmap({
   const renderFormattedTheory = (rawText?: string) => {
     if (!rawText) {
       return (
-        <div className="text-zinc-500 text-xs italic space-y-2.5">
+        <div className="text-slate-500 text-xs italic space-y-2.5">
           <p>Hiện tại bài học này đang được tổng hợp nội dung chi tiết bám sát tệp SGK bản mới nhất.</p>
-          <div className="bg-zinc-900 border border-zinc-800 p-4.5 rounded-2xl text-zinc-300 not-italic space-y-2.5">
-            <h5 className="font-bold text-rose-400 flex items-center gap-1.5"><Sparkles size={13}/> Gợi ý Ôn Thi Cốt Lõi:</h5>
-            <ul className="list-disc pl-5 space-y-1.5 text-[11px] leading-relaxed text-zinc-300">
+          <div className="bg-slate-50 border border-slate-200 p-4.5 rounded-2xl text-slate-700 not-italic space-y-2.5">
+            <h5 className="font-bold text-[#800F2F] flex items-center gap-1.5"><Sparkles size={13}/> Gợi ý Ôn Thi Cốt Lõi:</h5>
+            <ul className="list-disc pl-5 space-y-1.5 text-[11px] leading-relaxed text-slate-600">
               <li>Ôn tập kỹ các câu hỏi nhận biết và thông hiểu trong sách giáo khoa để nắm chắc điểm thi cốt lõi.</li>
               <li>Thường xuyên áp dụng làm bài tập thực hành, luyện đề trắc nghiệm tính giờ tại mục Pomodoro.</li>
               <li>Sử dụng chức năng Thời khóa biểu để xếp lịch tối ưu thời khoảng buổi học vào các khung giờ vàng ghi nhớ sâu.</li>
@@ -93,12 +93,12 @@ export default function Roadmap({
 
     const lines = rawText.split('\n');
     return (
-      <div className="space-y-4 text-xs text-zinc-300 font-sans leading-relaxed tracking-wide">
+      <div className="space-y-4 text-xs text-slate-700 font-sans leading-relaxed tracking-wide">
         {lines.map((line, idx) => {
           const trimmed = line.trim();
           if (trimmed.startsWith('###')) {
             return (
-              <h4 key={idx} className="font-serif font-black text-rose-400 text-sm mt-5 pb-1 border-b border-zinc-900 flex items-center gap-1.5">
+              <h4 key={idx} className="font-serif font-black text-[#800F2F] text-sm mt-5 pb-1 border-b border-slate-100 flex items-center gap-1.5">
                 <BookMarked size={14}/>
                 {trimmed.replace('###', '').trim()}
               </h4>
@@ -108,44 +108,44 @@ export default function Roadmap({
             // Strong formatted points
             const content = trimmed.substring(2).trim();
             return (
-              <p key={idx} className="pl-2 border-l-2 border-rose-950/60 text-zinc-300">
+              <p key={idx} className="pl-3 border-l-2 border-[#800F2F]/40 text-slate-700 font-medium my-2">
                 {content}
               </p>
             );
           }
           if (trimmed.startsWith('*') || trimmed.startsWith('-') || trimmed.startsWith('+')) {
             return (
-              <li key={idx} className="list-none pl-4 relative before:content-['•'] before:text-rose-500 before:absolute before:left-1.5 text-zinc-400 text-[11px]">
+              <li key={idx} className="list-none pl-4 relative before:content-['•'] before:text-rose-600 before:absolute before:left-1.5 text-slate-600 text-[11px]">
                 {trimmed.substring(1).trim()}
               </li>
             );
           }
           if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
             return (
-              <div key={idx} className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-800 text-center font-mono text-rose-300 text-[11px] overflow-x-auto my-2.5">
+              <div key={idx} className="bg-[#FFF0F2] p-3 rounded-xl border border-[#FFE1E5] text-center font-mono text-[#800F2F] text-[11px] overflow-x-auto my-2.5">
                 {trimmed.replace(/\$\$/g, '')}
               </div>
             );
           }
-          return trimmed ? <p key={idx} className="text-zinc-300 text-[11px]">{trimmed}</p> : <div key={idx} className="h-1" />;
+          return trimmed ? <p key={idx} className="text-slate-600 text-[11px]">{trimmed}</p> : <div key={idx} className="h-1" />;
         })}
       </div>
     );
   };
 
   return (
-    <div id="roadmap-view" className="space-y-6 font-sans text-zinc-100">
+    <div id="roadmap-view" className="space-y-6 font-sans text-slate-800">
       
       {/* 1. HERO HEADINGS */}
-      <div id="roadmap-hero" className="bg-zinc-950 p-6 rounded-3xl border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+      <div id="roadmap-hero" className="bg-[#FFF5F7] p-6 rounded-3xl border border-[#FFE1E5] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
         <div>
-          <h2 className="font-serif text-xl font-black text-rose-400">Lộ Trình Ôn Thi THPT Quốc Gia</h2>
-          <p className="text-xs text-zinc-400 mt-1">Hệ thống bài học chuẩn chương trình khung SGK Toán, Hóa, Sinh, Lý</p>
+          <h2 className="font-serif text-xl font-black text-[#800F2F]">Lộ Trình Ôn Thi THPT Quốc Gia</h2>
+          <p className="text-xs text-slate-500 mt-1">Hệ thống bài học chuẩn chương trình khung SGK Toán, Hóa, Sinh, Lý</p>
         </div>
 
         {/* Read-only Alert Warning for anonymous non-admins */}
         {!isAdmin && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-950/30 border border-amber-900/60 text-amber-400 text-xs font-semibold">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
             <AlertCircle size={14} className="text-amber-500 flex-shrink-0 animate-bounce" />
             <span>Chế độ chỉ xem. Nhập PIN tại Cài đặt để đánh dấu hoàn thành bài!</span>
           </div>
@@ -157,13 +157,13 @@ export default function Roadmap({
         <div className="flex flex-col sm:flex-row items-center gap-4 justify-between">
           
           {/* Grade Selector Toggle */}
-          <div id="grade-selectors" className="flex items-center p-1 bg-zinc-900 rounded-2xl border border-zinc-800 w-full sm:w-auto">
+          <div id="grade-selectors" className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/85 w-full sm:w-auto">
             <button
               onClick={() => setSelectedGrade('11')}
               className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 selectedGrade === '11' 
-                  ? 'bg-rose-600 text-white shadow-md' 
-                  : 'text-zinc-400 hover:text-rose-400'
+                  ? 'bg-[#800F2F] text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-[#800F2F]'
               }`}
             >
               Chương trình Lớp 11
@@ -172,8 +172,8 @@ export default function Roadmap({
               onClick={() => setSelectedGrade('12')}
               className={`flex-1 sm:flex-none px-6 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 selectedGrade === '12' 
-                  ? 'bg-rose-600 text-white shadow-md' 
-                  : 'text-zinc-400 hover:text-rose-400'
+                  ? 'bg-[#800F2F] text-white shadow-sm' 
+                  : 'text-slate-500 hover:text-[#800F2F]'
               }`}
             >
               Chương trình Lớp 12
@@ -182,13 +182,13 @@ export default function Roadmap({
 
           {/* Search bar input */}
           <div id="roadmap-search-field" className="relative w-full sm:w-64">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" size={15} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
             <input
               type="text"
               placeholder="Tìm tên bài, chương..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs rounded-2xl border border-zinc-800 bg-zinc-900 text-zinc-100 focus:outline-none focus:border-rose-500 transition-all placeholder-zinc-500"
+              className="w-full pl-10 pr-4 py-2 text-xs rounded-2xl border border-[#FFE1E5] bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all placeholder-slate-400"
             />
           </div>
         </div>
@@ -199,18 +199,18 @@ export default function Roadmap({
             onClick={() => setSelectedSubject('Tất cả')}
             className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
               selectedSubject === 'Tất cả' 
-                ? 'bg-rose-600 text-white shadow-md' 
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:border-rose-400/50 hover:text-rose-400'
+                ? 'bg-[#800F2F] text-white shadow-sm' 
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-rose-300 hover:text-[#800F2F]'
             }`}
           >
             Tất cả các môn
           </button>
           {subjects.map((sub) => {
             const isActive = selectedSubject === sub;
-            let colorAccent = 'hover:bg-rose-950/20 hover:text-rose-400';
-            if (sub === 'Hóa') colorAccent = 'hover:bg-amber-950/20 hover:text-amber-400';
-            if (sub === 'Sinh') colorAccent = 'hover:bg-emerald-950/20 hover:text-emerald-400';
-            if (sub === 'Lý') colorAccent = 'hover:bg-sky-950/20 hover:text-sky-400';
+            let colorAccent = 'hover:border-rose-300 hover:text-[#800F2F]';
+            if (sub === 'Hóa') colorAccent = 'hover:border-amber-300 hover:text-amber-600';
+            if (sub === 'Sinh') colorAccent = 'hover:border-emerald-300 hover:text-emerald-600';
+            if (sub === 'Lý') colorAccent = 'hover:border-sky-300 hover:text-sky-600';
 
             return (
               <button
@@ -218,8 +218,8 @@ export default function Roadmap({
                 onClick={() => setSelectedSubject(sub)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isActive 
-                    ? 'bg-rose-600 text-white shadow-md' 
-                    : `bg-zinc-900 border border-zinc-800 text-zinc-400 ${colorAccent}`
+                    ? 'bg-[#800F2F] text-white shadow-sm' 
+                    : `bg-white border border-slate-200 text-slate-600 ${colorAccent}`
                 }`}
               >
                 Môn {sub}
@@ -233,39 +233,39 @@ export default function Roadmap({
       <div id="chapters-grouping-grid" className="space-y-6">
         {Object.keys(groupedLessons).length > 0 ? (
           (Object.entries(groupedLessons) as [string, Lesson[]][]).map(([chapter, chapterLessons]) => (
-            <div key={chapter} className="bg-zinc-950 rounded-3xl border border-zinc-850 overflow-hidden shadow-xl">
+            <div key={chapter} className="bg-white rounded-3xl border border-[#FFE1E5] overflow-hidden shadow-sm">
               
               {/* Chapter branding header */}
-              <div id={`chapter-header-${chapter.replace(/\s+/g, '-')}`} className="bg-zinc-900/40 px-5 py-4 border-b border-zinc-900 flex items-center justify-between">
-                <h3 className="font-serif text-sm font-black text-rose-300 tracking-wide flex items-center gap-2">
+              <div id={`chapter-header-${chapter.replace(/\s+/g, '-')}`} className="bg-[#FFF8F9] px-5 py-4 border-b border-[#FFE1E5] flex items-center justify-between">
+                <h3 className="font-serif text-sm font-black text-[#800F2F] tracking-wide flex items-center gap-2">
                   <BookOpen size={15} />
                   {chapter}
                 </h3>
-                <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-lg bg-zinc-900 text-zinc-400 font-bold border border-zinc-800">
+                <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-lg bg-white text-slate-500 font-bold border border-slate-100">
                   {chapterLessons.length} bài học
                 </span>
               </div>
 
               {/* Chapter items list */}
-              <div className="divide-y divide-zinc-900/60 px-2">
+              <div className="divide-y divide-slate-100 px-2">
                 {chapterLessons.map((lesson) => {
                   const isCompleted = completedMap[lesson.id] || false;
                   
                   // Color codes for subjects
-                  let subjectColor = 'text-rose-400 bg-rose-950/40 border border-rose-900/40';
+                  let subjectColor = 'text-[#800F2F] bg-[#FFF0F2] border border-[#FFE1E5]';
                   if (lesson.subject === 'Hóa') {
-                    subjectColor = 'text-amber-400 bg-amber-950/40 border border-amber-900/40';
+                    subjectColor = 'text-amber-700 bg-amber-50 border border-amber-200';
                   } else if (lesson.subject === 'Sinh') {
-                    subjectColor = 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/40';
+                    subjectColor = 'text-emerald-700 bg-emerald-50 border border-emerald-250';
                   } else if (lesson.subject === 'Lý') {
-                    subjectColor = 'text-sky-400 bg-sky-950/40 border border-sky-900/40';
+                    subjectColor = 'text-sky-700 bg-sky-50 border border-sky-200';
                   }
 
                   return (
                     <div 
                       key={lesson.id} 
                       className={`flex items-center justify-between p-4 transition-all duration-300 ${
-                        isCompleted ? 'bg-zinc-900/20' : 'hover:bg-zinc-900/40'
+                        isCompleted ? 'bg-slate-50/40' : 'hover:bg-[#FFF8F9]/45'
                       }`}
                     >
                       {/* Left: Checkmark & Lesson Info */}
@@ -279,14 +279,14 @@ export default function Roadmap({
                           }`}
                         >
                           {isCompleted ? (
-                            <CheckSquare className="text-rose-500 w-5.5 h-5.5" />
+                            <CheckSquare className="text-[#800F2F] w-5.5 h-5.5" />
                           ) : (
-                            <Square className="text-zinc-700 hover:text-rose-400 w-5.5 h-5.5" />
+                            <Square className="text-slate-300 hover:text-[#800F2F] w-5.5 h-5.5" />
                           )}
                         </button>
  
                         <div className="truncate pr-4">
-                          <h4 className={`text-xs md:text-sm font-semibold leading-snug truncate ${isCompleted ? 'line-through text-zinc-500' : 'text-zinc-200'}`}>
+                          <h4 className={`text-xs md:text-sm font-semibold leading-snug truncate ${isCompleted ? 'line-through text-slate-400 font-normal' : 'text-slate-700'}`}>
                             {lesson.title}
                           </h4>
                           <div className="flex items-center gap-2 mt-1">
@@ -302,7 +302,7 @@ export default function Roadmap({
                         {/* VIEW SYSTEM THEORY BUTTON */}
                         <button
                           onClick={() => handleOpenTheory(lesson)}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-rose-400 hover:border-rose-500 transition-all leading-none cursor-pointer"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-white border border-slate-200 text-slate-600 hover:text-[#800F2F] hover:border-[#FFE1E5] hover:bg-[#FFF8F9] transition-all leading-none cursor-pointer"
                         >
                           <FileText size={11} />
                           Lý thuyết thi
@@ -310,10 +310,10 @@ export default function Roadmap({
 
                         <button
                           onClick={() => handleLessonToggle(lesson.id)}
-                          className={`hidden xs:inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all ml-1 ${
+                          className={`hidden xs:inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-extrabold transition-all ml-1 cursor-pointer ${
                             isCompleted 
-                              ? 'bg-zinc-900 text-zinc-500 border border-zinc-800/40' 
-                              : 'bg-rose-950/40 text-rose-400 border border-rose-900/50 hover:bg-rose-600 hover:text-white'
+                              ? 'bg-slate-50 text-slate-400 border border-slate-205' 
+                              : 'bg-rose-50 text-[#800F2F] border border-rose-200 hover:bg-[#800F2F] hover:text-white'
                           }`}
                         >
                           {isCompleted ? 'Hoàn thành' : 'Đánh dấu'}
@@ -328,10 +328,10 @@ export default function Roadmap({
             </div>
           ))
         ) : (
-          <div className="bg-zinc-950 p-12 rounded-3xl border border-zinc-850 text-center max-w-md mx-auto">
-            <AlertCircle className="mx-auto text-zinc-700 mb-4" size={40} />
-            <h4 className="text-sm font-bold text-zinc-300">Không tìm thấy bài học nào</h4>
-            <p className="text-xs text-zinc-500 mt-1">Hãy thử điều chỉnh lại bộ lọc môn học hoặc từ khóa tìm kiếm của bạn.</p>
+          <div className="bg-white p-12 rounded-3xl border border-[#FFE1E5] text-center max-w-md mx-auto">
+            <AlertCircle className="mx-auto text-slate-300 mb-4" size={40} />
+            <h4 className="text-sm font-bold text-slate-700">Không tìm thấy bài học nào</h4>
+            <p className="text-xs text-slate-400 mt-1">Hãy thử điều chỉnh lại bộ lọc môn học hoặc từ khóa tìm kiếm của bạn.</p>
           </div>
         )}
       </div>
@@ -341,26 +341,26 @@ export default function Roadmap({
         <div id="theory-viewer-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
             onClick={() => setViewingTheoryLesson(null)}
-            className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity" 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" 
           />
           
           <div 
             id="theory-viewer-dialog"
-            className="relative bg-zinc-950 border border-zinc-850 max-w-2xl w-full max-h-[85vh] p-6 rounded-3xl shadow-2xl animate-popIn z-10 flex flex-col overflow-hidden text-zinc-100"
+            className="relative bg-white border border-[#FFE1E5] max-w-2xl w-full max-h-[85vh] p-6 rounded-3xl shadow-2xl animate-popIn z-10 flex flex-col overflow-hidden text-slate-800"
           >
             {/* Modal Heading block */}
-            <div className="flex items-center justify-between pb-3.5 border-b border-zinc-900">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-mono font-black tracking-widest bg-rose-950/40 text-rose-400 border border-rose-900/40 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] uppercase font-mono font-black tracking-widest bg-[#FFF0F2] text-[#800F2F] border border-[#FFE1E5] px-2.5 py-0.5 rounded-md">
                   Môn {viewingTheoryLesson.subject} Lớp {viewingTheoryLesson.grade}
                 </span>
-                <h3 className="font-serif font-black text-xs md:text-sm text-zinc-100 truncate max-w-xs md:max-w-md" title={viewingTheoryLesson.title}>
+                <h3 className="font-serif font-black text-xs md:text-sm text-[#800F2F] truncate max-w-xs md:max-w-md" title={viewingTheoryLesson.title}>
                   {viewingTheoryLesson.title}
                 </h3>
               </div>
               <button
                 onClick={() => setViewingTheoryLesson(null)}
-                className="text-zinc-500 hover:text-rose-400 font-bold p-1 rounded-md"
+                className="text-slate-400 hover:text-[#800F2F] font-bold p-1 rounded-md"
               >
                 <X size={15} />
               </button>
@@ -372,11 +372,11 @@ export default function Roadmap({
             </div>
 
             {/* Modal Footer actions shortcut linkage */}
-            <div className="pt-3 border-t border-zinc-900 flex justify-between items-center text-[10px] text-zinc-500">
+            <div className="pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400">
               <span>Hệ thống lý thuyết bám sát chuẩn SGK ôn luyện thi</span>
               <button
                 onClick={() => setViewingTheoryLesson(null)}
-                className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 transition-all cursor-pointer font-bold"
+                className="px-4 py-2 rounded-xl bg-[#800F2F] hover:bg-[#A71E40] text-white transition-all cursor-pointer font-bold shadow-sm shadow-[#800f2f]/10"
               >
                 Đóng lại
               </button>

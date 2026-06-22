@@ -10,6 +10,8 @@ interface HeaderProps {
   pomodoroIsRunning: boolean;
   pomodoroMode: 'study' | 'break';
   onTimerClick: () => void;
+  profileName: string;
+  profileExamName: string;
 }
 
 export default function Header({ 
@@ -20,9 +22,11 @@ export default function Header({
   pomodoroTimeLeft,
   pomodoroIsRunning,
   pomodoroMode,
-  onTimerClick
+  onTimerClick,
+  profileName,
+  profileExamName
 }: HeaderProps) {
-  const [greeting, setGreeting] = useState('Chào buổi học tốt, Hương ✦');
+  const [greeting, setGreeting] = useState('');
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -34,20 +38,20 @@ export default function Header({
     const updateGreeting = () => {
       const hours = new Date().getHours();
       if (hours >= 5 && hours < 11) {
-        setGreeting('Chào buổi sáng, Hương ✦');
+        setGreeting(`Chào buổi sáng, ${profileName} ✦`);
       } else if (hours >= 11 && hours < 17) {
-        setGreeting('Chào buổi chiều, Hương ✦');
+        setGreeting(`Chào buổi chiều, ${profileName} ✦`);
       } else if (hours >= 17 && hours < 22) {
-        setGreeting('Chào buổi tối, Hương ✦');
+        setGreeting(`Chào buổi tối, ${profileName} ✦`);
       } else {
-        setGreeting('Hương học khuya muộn rồi ✦');
+        setGreeting(`${profileName} học khuya muộn rồi ✦`);
       }
     };
     
     updateGreeting();
     const interval = setInterval(updateGreeting, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [profileName]);
 
   return (
     <header id="app-header" className="bg-white border-b border-[#FFE1E5] px-6 py-5 sticky top-0 z-10 flex items-center justify-between">
@@ -101,7 +105,7 @@ export default function Header({
           id="thpt-2028-badge"
           className="hidden lg:inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-[#800F2F] to-[#A71E40] text-white shadow-sm shadow-[#800F2F]/20"
         >
-          Tốt nghiệp THPT 2028 🎓
+          {profileExamName} 🎓
         </span>
 
         {/* Lock / Unlock administrative access button trigger */}

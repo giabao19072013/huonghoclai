@@ -1,0 +1,6 @@
+{
+  "name": "Hương Học Lại",
+  "description": "Ứng dụng quản lý học tập cá nhân dành riêng cho Hương hướng tới mục tiêu tốt nghiệp THPT 2028 và ĐH Y khoa Phạm Ngọc Thạch",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

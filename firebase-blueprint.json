@@ -1,0 +1,131 @@
+{
+  "entities": {
+    "LessonProgress": {
+      "title": "LessonProgress",
+      "description": "Tracks the completion status of a specific lesson",
+      "type": "object",
+      "properties": {
+        "lessonId": {
+          "type": "string",
+          "description": "Unique identifier of the lesson"
+        },
+        "completed": {
+          "type": "boolean",
+          "description": "Completed status of the lesson"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the lesson completion status was last updated"
+        }
+      },
+      "required": ["lessonId", "completed"]
+    },
+    "DocumentAsset": {
+      "title": "DocumentAsset",
+      "description": "A study document or video link attached to a lesson",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique asset ID"
+        },
+        "lessonId": {
+          "type": "string",
+          "description": "Associated lesson ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the document or video link"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["video", "pdf", "word", "image"],
+          "description": "Type of the asset"
+        },
+        "url": {
+          "type": "string",
+          "description": "Resource URL (link or Firebase Storage URL)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "lessonId", "title", "type", "url"]
+    },
+    "StudyNote": {
+      "title": "StudyNote",
+      "description": "Quick draft text write-ups or diaries for lessons",
+      "type": "object",
+      "properties": {
+        "lessonId": {
+          "type": "string",
+          "description": "The unique lesson ID this note describes"
+        },
+        "content": {
+          "type": "string",
+          "description": "The markdown or text written contents of this note"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last edit timestamp"
+        }
+      },
+      "required": ["lessonId", "content"]
+    },
+    "StudySchedule": {
+      "title": "StudySchedule",
+      "description": "A study session event element added to the learning calendar timetables",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique event ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the study session"
+        },
+        "subject": {
+          "type": "string",
+          "enum": ["Toán", "Hóa", "Sinh", "Lý", "Khác"],
+          "description": "Academic subject of the session"
+        },
+        "dayOfWeek": {
+          "type": "number",
+          "description": "0-6 representing Sunday to Saturday"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time in HH:MM format"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time in HH:MM format"
+        }
+      },
+      "required": ["id", "title", "subject", "dayOfWeek", "startTime", "endTime"]
+    }
+  },
+  "firestore": {
+    "/progress/{lessonId}": {
+      "schema": "LessonProgress",
+      "description": "Monitors checked/unchecked lessons"
+    },
+    "/documents/{assetId}": {
+      "schema": "DocumentAsset",
+      "description": "Video links and study guide resources"
+    },
+    "/notes/{lessonId}": {
+      "schema": "StudyNote",
+      "description": "Markdown text note diaries with lesson association"
+    },
+    "/schedules/{eventId}": {
+      "schema": "StudySchedule",
+      "description": "Academic timetable study events"
+    }
+  }
+}

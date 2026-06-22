@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Catch-All Deny Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Secure Helper Functions
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation definitions per collection schema
+
+    function isValidLessonProgress(data) {
+      return data.keys().hasAll(['lessonId', 'completed', 'updatedAt'])
+        && data.keys().size() == 3
+        && data.lessonId is string
+        && data.lessonId.size() <= 128
+        && data.completed is bool
+        && (data.updatedAt is timestamp || data.updatedAt is string);
+    }
+
+    function isValidDocumentAsset(data) {
+      return data.keys().hasAll(['id', 'lessonId', 'title', 'type', 'url', 'createdAt'])
+        && data.keys().size() == 6
+        && data.id is string
+        && data.id.size() <= 128
+        && data.lessonId is string
+        && data.lessonId.size() <= 128
+        && data.title is string
+        && data.title.size() <= 200
+        && data.type is string
+        && (data.type == 'video' || data.type == 'pdf' || data.type == 'word' || data.type == 'image')
+        && data.url is string
+        && data.url.size() <= 2083
+        && (data.createdAt is timestamp || data.createdAt is string);
+    }
+
+    function isValidStudyNote(data) {
+      return data.keys().hasAll(['lessonId', 'content', 'updatedAt'])
+        && data.keys().size() == 3
+        && data.lessonId is string
+        && data.lessonId.size() <= 128
+        && data.content is string
+        && data.content.size() <= 100000
+        && (data.updatedAt is timestamp || data.updatedAt is string);
+    }
+
+    function isValidStudySchedule(data) {
+      return data.keys().hasAll(['id', 'title', 'subject', 'dayOfWeek', 'startTime', 'endTime'])
+        && data.keys().size() == 6
+        && data.id is string
+        && data.id.size() <= 128
+        && data.title is string
+        && data.title.size() <= 200
+        && data.subject is string
+        && (data.subject == 'Toán' || data.subject == 'Hóa' || data.subject == 'Sinh' || data.subject == 'Lý' || data.subject == 'Khác')
+        && data.dayOfWeek is int
+        && data.dayOfWeek >= 0
+        && data.dayOfWeek <= 6
+        && data.startTime is string
+        && data.startTime.matches('^[0-9]{2}:[0-9]{2}$')
+        && data.endTime is string
+        && data.endTime.matches('^[0-9]{2}:[0-9]{2}$');
+    }
+
+    // Rules matching individual entities mapped in firebase-blueprint
+
+    match /progress/{lessonId} {
+      allow read, get, list: if true;
+      allow create: if isValidId(lessonId) && isValidLessonProgress(incoming());
+      allow update: if isValidId(lessonId) && isValidLessonProgress(incoming())
+                       && incoming().lessonId == existing().lessonId;
+      allow delete: if isValidId(lessonId);
+    }
+
+    match /documents/{assetId} {
+      allow read, get, list: if true;
+      allow create: if isValidId(assetId) && isValidDocumentAsset(incoming());
+      allow update: if isValidId(assetId) && isValidDocumentAsset(incoming())
+                       && incoming().id == existing().id;
+      allow delete: if isValidId(assetId);
+    }
+
+    match /notes/{lessonId} {
+      allow read, get, list: if true;
+      allow create: if isValidId(lessonId) && isValidStudyNote(incoming());
+      allow update: if isValidId(lessonId) && isValidStudyNote(incoming())
+                       && incoming().lessonId == existing().lessonId;
+      allow delete: if isValidId(lessonId);
+    }
+
+    match /schedules/{eventId} {
+      allow read, get, list: if true;
+      allow create: if isValidId(eventId) && isValidStudySchedule(incoming());
+      allow update: if isValidId(eventId) && isValidStudySchedule(incoming())
+                       && incoming().id == existing().id;
+      allow delete: if isValidId(eventId);
+    }
+  }
+}

@@ -1,90 +1,35 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, AlertTriangle, Coffee, Target, Volume2, Sparkles } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Play, Pause, RotateCcw, Coffee, Target, Sparkles } from 'lucide-react';
 
-export default function Pomodoro() {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // Default to 25 minutes in seconds
-  const [isRunning, setIsRunning] = useState(false);
-  const [mode, setMode] = useState<'study' | 'break'>('study'); // study or break
-  const [studyTime, setStudyTime] = useState(25); // In minutes
-  const [breakTime, setBreakTime] = useState(5);  // In minutes
-  const [sessionsCompleted, setSessionsCompleted] = useState(0);
+interface PomodoroProps {
+  timeLeft: number;
+  setTimeLeft: React.Dispatch<React.SetStateAction<number>>;
+  isRunning: boolean;
+  setIsRunning: (running: boolean) => void;
+  mode: 'study' | 'break';
+  setMode: (mode: 'study' | 'break') => void;
+  studyTime: number;
+  setStudyTime: (time: number) => void;
+  breakTime: number;
+  setBreakTime: (time: number) => void;
+  sessionsCompleted: number;
+  setSessionsCompleted: React.Dispatch<React.SetStateAction<number>>;
+}
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Sound generator utilizing standard Web Audio API (Reliable offline)
-  const triggerAlarmSound = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      
-      const ctx = new AudioCtx();
-      
-      // Let's sound 3 sequential sweet bell beeps!
-      const playBeep = (startTime: number, freq: number, duration: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, startTime);
-        
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.05);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-      };
-
-      const now = ctx.currentTime;
-      // Trill alarm
-      playBeep(now, 880, 0.4);       // A5
-      playBeep(now + 0.5, 987.77, 0.4); // B5
-      playBeep(now + 1.0, 1318.51, 0.6); // E6
-      
-    } catch (e) {
-      console.warn("Unable to play Web Audio alarm notification:", e);
-    }
-  };
-
-  // Timer Countdown Ticker logic
-  useEffect(() => {
-    if (isRunning) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            // Timer Finished! Next transition
-            triggerAlarmSound();
-            setIsRunning(false);
-            
-            if (mode === 'study') {
-              setMode('break');
-              setSessionsCompleted(s => s + 1);
-              return breakTime * 60;
-            } else {
-              setMode('study');
-              return studyTime * 60;
-            }
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isRunning, mode, studyTime, breakTime]);
-
-  // Handle configuration changes
-  useEffect(() => {
-    setTimeLeft(mode === 'study' ? studyTime * 60 : breakTime * 60);
-    setIsRunning(false);
-  }, [studyTime, breakTime, mode]);
+export default function Pomodoro({
+  timeLeft,
+  setTimeLeft,
+  isRunning,
+  setIsRunning,
+  mode,
+  setMode,
+  studyTime,
+  setStudyTime,
+  breakTime,
+  setBreakTime,
+  sessionsCompleted,
+  setSessionsCompleted
+}: PomodoroProps) {
 
   // Formatter "MM:SS"
   const formatTime = (seconds: number) => {

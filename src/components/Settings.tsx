@@ -8,6 +8,7 @@ interface SettingsProps {
   onLock: () => void;
   onSaveFirebaseConfig: (config: FirebaseConfig) => void;
   onResetFirebaseConfig: () => void;
+  onClearAllData: () => Promise<void>;
 }
 
 export default function Settings({
@@ -15,7 +16,8 @@ export default function Settings({
   onUnlock,
   onLock,
   onSaveFirebaseConfig,
-  onResetFirebaseConfig
+  onResetFirebaseConfig,
+  onClearAllData
 }: SettingsProps) {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -130,6 +132,33 @@ export default function Settings({
                 >
                   Khóa lại (Thoát Admin)
                 </button>
+
+                {/* Clear Mock Data tools block */}
+                <div className="pt-4 border-t border-emerald-200 mt-2 space-y-2 text-left">
+                  <h5 className="text-[10px] uppercase font-mono tracking-wider text-rose-800 font-bold flex items-center gap-1">
+                    🧹 Dọn dẹp Không gian học tập
+                  </h5>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Xóa sạch các ghi chú, tài liệu tải lên nháp cũ và lịch học thử nghiệm khỏi cơ sở dữ liệu để bắt đầu ghi chép học tập sạch sẽ.
+                  </p>
+                  <button
+                    id="clear-all-data-btn"
+                    type="button"
+                    onClick={async () => {
+                      if (confirm('Khẩn cấp: Bạn có chắc chắn muốn XÓA TOÀN BỘ lịch học, tài liệu của chính bạn khỏi Database? Mọi dữ liệu sẽ biến mất vĩnh viễn!')) {
+                        try {
+                          await onClearAllData();
+                          alert('Đã dọn dẹp toàn bộ dữ liệu mẫu thành công. Hiện tại website đã sạch 100%!');
+                        } catch (err) {
+                          alert('Lỗi khi thực hiện dọn dẹp dữ liệu.');
+                        }
+                      }
+                    }}
+                    className="w-full py-2 rounded-xl text-xs font-bold border border-rose-200 bg-[#FFF0F2] text-[#800F2F] hover:bg-[#FFE1E5] transition-all cursor-pointer"
+                  >
+                    Xóa sạch dữ liệu mẫu & nháp
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handlePinSubmit} className="space-y-4">

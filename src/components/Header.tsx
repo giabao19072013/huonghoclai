@@ -1,20 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Lock, Unlock, ShieldAlert } from 'lucide-react';
+import { Menu, Lock, Unlock, ShieldAlert, Timer, Coffee, Play, Pause } from 'lucide-react';
 
 interface HeaderProps {
   isAdmin: boolean;
   setIsOpenMobile: (open: boolean) => void;
   triggerUnlockModal: () => void;
   lockAdminMode: () => void;
+  pomodoroTimeLeft: number;
+  pomodoroIsRunning: boolean;
+  pomodoroMode: 'study' | 'break';
+  onTimerClick: () => void;
 }
 
 export default function Header({ 
   isAdmin, 
   setIsOpenMobile, 
   triggerUnlockModal,
-  lockAdminMode
+  lockAdminMode,
+  pomodoroTimeLeft,
+  pomodoroIsRunning,
+  pomodoroMode,
+  onTimerClick
 }: HeaderProps) {
   const [greeting, setGreeting] = useState('Chào buổi học tốt, Hương ✦');
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -60,9 +74,32 @@ export default function Header({
 
       {/* Right side: Badge status & Secret lock trigger */}
       <div id="header-badge-control" className="flex items-center gap-2.5">
+        {/* Persistent Pomodoro indicator capsule */}
+        <button
+          onClick={onTimerClick}
+          title="Bấm để mở bảng điều khiển Pomodoro"
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full transition-all cursor-pointer ${
+            pomodoroIsRunning
+              ? pomodoroMode === 'study'
+                ? 'bg-[#800F2F]/10 border border-[#800F2F] text-[#800F2F] animate-pulse shadow-sm'
+                : 'bg-emerald-500/10 border border-emerald-500 text-emerald-600 animate-pulse shadow-sm'
+              : 'bg-slate-50 border border-slate-200 text-slate-500 hover:text-[#800F2F] hover:bg-[#FFF0F2] hover:border-[#FFE1E5]'
+          }`}
+        >
+          {pomodoroMode === 'study' ? (
+            <Timer size={14} className={pomodoroIsRunning ? "animate-spin" : ""} style={{ animationDuration: '4s' }} />
+          ) : (
+            <Coffee size={14} />
+          )}
+          <span className="font-mono tracking-wider">{formatTime(pomodoroTimeLeft)}</span>
+          <span className="text-[9px] uppercase tracking-widest hidden md:inline opacity-80">
+            ({pomodoroMode === 'study' ? 'Học' : 'Nghỉ'})
+          </span>
+        </button>
+
         <span 
           id="thpt-2028-badge"
-          className="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-[#800F2F] to-[#A71E40] text-white shadow-sm shadow-[#800F2F]/20"
+          className="hidden lg:inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-[#800F2F] to-[#A71E40] text-white shadow-sm shadow-[#800F2F]/20"
         >
           Tốt nghiệp THPT 2028 🎓
         </span>

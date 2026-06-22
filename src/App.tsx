@@ -26,7 +26,8 @@ import {
   getStudySchedules,
   saveStudySchedule,
   deleteStudySchedule,
-  isUsingFirebase
+  isUsingFirebase,
+  clearAllFirebaseCollections
 } from './firebase';
 
 export default function App() {
@@ -44,6 +45,87 @@ export default function App() {
   const [notes, setNotes] = useState<StudyNote[]>([]);
   const [schedules, setSchedules] = useState<StudySchedule[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // === COMMONLY ACCESSED POMODORO SHARED STATE ENGINE ===
+  const [pomodoroTimeLeft, setPomodoroTimeLeft] = useState(25 * 60);
+  const [pomodoroIsRunning, setPomodoroIsRunning] = useState(false);
+  const [pomodoroMode, setPomodoroMode] = useState<'study' | 'break'>('study');
+  const [pomodoroStudyTime, setPomodoroStudyTime] = useState(25);
+  const [pomodoroBreakTime, setPomodoroBreakTime] = useState(5);
+  const [pomodoroSessionsCompleted, setPomodoroSessionsCompleted] = useState(0);
+  const [isPomodoroTimeoutModalOpen, setIsPomodoroTimeoutModalOpen] = useState(false);
+  const [pomodoroTimeoutType, setPomodoroTimeoutType] = useState<'study' | 'break'>('study');
+
+  const triggerAlarmSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const playBeep = (startTime: number, freq: number, duration: number, type: OscillatorType = 'square') => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.6, startTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.05);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      const now = ctx.currentTime;
+      // High pitch trilling buzzer ring!
+      for (let i = 0; i < 5; i++) {
+        const t = now + i * 0.45;
+        playBeep(t, 650, 0.2, 'square');
+        playBeep(t + 0.15, 850, 0.22, 'square');
+      }
+    } catch (e) {
+      console.warn("Unable to play alarm buzzer:", e);
+    }
+  };
+
+  // Background Pomodoro Countdown loop running independently of tab switching!
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (pomodoroIsRunning) {
+      timer = setInterval(() => {
+        setPomodoroTimeLeft((prev) => {
+          if (prev <= 1) {
+            triggerAlarmSound();
+            setPomodoroTimeoutType(pomodoroMode);
+            setIsPomodoroTimeoutModalOpen(true);
+            setPomodoroIsRunning(false);
+
+            if (pomodoroMode === 'study') {
+              setPomodoroMode('break');
+              setPomodoroSessionsCompleted((s) => s + 1);
+              return pomodoroBreakTime * 60;
+            } else {
+              setPomodoroMode('study');
+              return pomodoroStudyTime * 60;
+            }
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timer) clearInterval(timer);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [pomodoroIsRunning, pomodoroMode, pomodoroStudyTime, pomodoroBreakTime]);
+
+  // Handle study/break timer length adjustments
+  useEffect(() => {
+    setPomodoroTimeLeft(pomodoroMode === 'study' ? pomodoroStudyTime * 60 : pomodoroBreakTime * 60);
+    setPomodoroIsRunning(false);
+  }, [pomodoroStudyTime, pomodoroBreakTime, pomodoroMode]);
 
   // 1. Initial Data Fetching from Database or local cache fallback
   useEffect(() => {
@@ -81,101 +163,109 @@ export default function App() {
 
   // A. Progress (checkmarks)
   const handleToggleProgress = async (lessonId: string, completed: boolean) => {
-    try {
-      await saveLessonProgress(lessonId, completed);
-      // Optimistically update state
-      setProgress(prev => {
-        const index = prev.findIndex(p => p.lessonId === lessonId);
-        const updatedItem = { lessonId, completed, updatedAt: new Date().toISOString() };
-        if (index > -1) {
-          const next = [...prev];
-          next[index] = updatedItem;
-          return next;
-        } else {
-          return [...prev, updatedItem];
-        }
-      });
-    } catch (e) {
-      alert('Không thể lưu trạng thái bài học lên cơ sở dữ liệu!');
-    }
+    // Optimistically update state
+    setProgress(prev => {
+      const index = prev.findIndex(p => p.lessonId === lessonId);
+      const updatedItem = { lessonId, completed, updatedAt: new Date().toISOString() };
+      if (index > -1) {
+        const next = [...prev];
+        next[index] = updatedItem;
+        return next;
+      } else {
+        return [...prev, updatedItem];
+      }
+    });
+
+    // Write to DB asynchronously in background
+    saveLessonProgress(lessonId, completed).catch(e => {
+      console.error('Không thể lưu trạng thái bài học lên cơ sở dữ liệu!', e);
+    });
   };
 
   // B. Documents upload
   const handleAddAsset = async (newAsset: DocumentAsset) => {
-    try {
-      await saveDocumentAsset(newAsset);
-      setAssets(prev => [...prev, newAsset]);
-    } catch (e) {
-      alert('Không thể lưu tài liệu mới!');
-    }
+    // Optimistically update state
+    setAssets(prev => [...prev, newAsset]);
+
+    // Write to DB in background
+    saveDocumentAsset(newAsset).catch(e => {
+      console.error('Không thể lưu tài liệu mới!', e);
+    });
   };
 
   const handleDeleteAsset = async (assetId: string) => {
-    try {
-      await deleteDocumentAsset(assetId);
-      setAssets(prev => prev.filter(a => a.id !== assetId));
-    } catch (e) {
-      alert('Không thể xóa tài liệu!');
-    }
+    // Optimistically update state
+    setAssets(prev => prev.filter(a => a.id !== assetId));
+
+    // Delete from DB in background
+    deleteDocumentAsset(assetId).catch(e => {
+      console.error('Không thể xóa tài liệu!', e);
+    });
   };
 
   // C. Notes notepad journals
   const handleSaveNote = async (note: StudyNote) => {
-    try {
-      await saveStudyNote(note);
-      setNotes(prev => {
-        const index = prev.findIndex(n => n.id === note.id);
-        if (index > -1) {
-          const next = [...prev];
-          next[index] = note;
-          return next;
-        } else {
-          return [...prev, note];
-        }
-      });
-    } catch (e) {
-      alert('Ghi chú của bạn không thể được lưu trữ lúc này!');
-    }
+    // Optimistically update state
+    setNotes(prev => {
+      const index = prev.findIndex(n => n.id === note.id);
+      if (index > -1) {
+        const next = [...prev];
+        next[index] = note;
+        return next;
+      } else {
+        return [...prev, note];
+      }
+    });
+
+    // Write to DB in background
+    saveStudyNote(note).catch(e => {
+      console.error('Ghi chú của bạn không thể được lưu trữ lúc này!', e);
+    });
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    try {
-      await deleteStudyNote(noteId);
-      setNotes(prev => prev.filter(n => n.id !== noteId));
-    } catch (e) {
-      alert('Không thể xóa ghi chú này!');
-    }
+    // Optimistically update state
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+
+    // Delete from DB in background
+    deleteStudyNote(noteId).catch(e => {
+      console.error('Không thể xóa ghi chú này!', e);
+    });
   };
 
   // D. Timetable agenda schedules
   const handleAddSchedule = async (newEvent: StudySchedule) => {
-    try {
-      await saveStudySchedule(newEvent);
-      setSchedules(prev => [...prev, newEvent]);
-    } catch (e) {
-      alert('Lên lịch học bài không thành công!');
-    }
+    // Optimistically update state
+    setSchedules(prev => [...prev, newEvent]);
+
+    // Write to DB in background
+    saveStudySchedule(newEvent).catch(e => {
+      console.error('Lên lịch học bài không thành công!', e);
+    });
   };
 
   const handleDeleteSchedule = async (eventId: string) => {
-    try {
-      await deleteStudySchedule(eventId);
-      setSchedules(prev => prev.filter(s => s.id !== eventId));
-    } catch (e) {
-      alert('Không thể xóa buổi học khỏi lịch!');
-    }
+    // Optimistically update state
+    setSchedules(prev => prev.filter(s => s.id !== eventId));
+
+    // Delete from DB in background
+    deleteStudySchedule(eventId).catch(e => {
+      console.error('Không thể xóa buổi học khỏi lịch!', e);
+    });
   };
 
   const handleToggleScheduleCompleted = async (eventId: string) => {
-    try {
-      const match = schedules.find(s => s.id === eventId);
-      if (!match) return;
-      const updated = { ...match, completed: !match.completed };
-      await saveStudySchedule(updated);
-      setSchedules(prev => prev.map(s => s.id === eventId ? updated : s));
-    } catch (e) {
-      alert('Không thể thay đổi trạng thái hoàn thành!');
-    }
+    const match = schedules.find(s => s.id === eventId);
+    if (!match) return;
+    const updated = { ...match, completed: !match.completed };
+
+    // Optimistically update state
+    setSchedules(prev => prev.map(s => s.id === eventId ? updated : s));
+
+    // Write to DB in background
+    saveStudySchedule(updated).catch(e => {
+      console.error('Không thể thay đổi trạng thái hoàn thành!', e);
+    });
   };
 
   // 3. ADMIN ACCESS GATEWAYS PIN CONTROLS
@@ -214,6 +304,28 @@ export default function App() {
     localStorage.removeItem('HUONG_FIREBASE_CONFIG');
   };
 
+  // F. Wiping/Purging data to guarantee a 100% clean paper-like workspace!
+  const handleClearAllData = async () => {
+    // 1. Reset client states in 0ms seamlessly!
+    setProgress([]);
+    setAssets([]);
+    setNotes([]);
+    setSchedules([]);
+
+    // 2. Erase from LocalStorage fallback key collections!
+    localStorage.removeItem('huong_lessons_progress');
+    localStorage.removeItem('huong_document_assets');
+    localStorage.removeItem('huong_study_notes');
+    localStorage.removeItem('huong_study_schedules');
+
+    // 3. Delete from actual active Cloud Firestore too!
+    try {
+      await clearAllFirebaseCollections();
+    } catch (e) {
+      console.warn("Unable to completely clean server documents:", e);
+    }
+  };
+
   // Modal unlocking assistant
   const triggerUnlockModal = () => {
     setPinModalError(false);
@@ -242,6 +354,10 @@ export default function App() {
           setIsOpenMobile={setIsOpenMobile}
           triggerUnlockModal={triggerUnlockModal}
           lockAdminMode={lockAdminMode}
+          pomodoroTimeLeft={pomodoroTimeLeft}
+          pomodoroIsRunning={pomodoroIsRunning}
+          pomodoroMode={pomodoroMode}
+          onTimerClick={() => setActiveTab('pomodoro')}
         />
 
         {/* C. Dynamic View Routers container */}
@@ -307,7 +423,20 @@ export default function App() {
               )}
 
               {activeTab === 'pomodoro' && (
-                <Pomodoro />
+                <Pomodoro 
+                  timeLeft={pomodoroTimeLeft}
+                  setTimeLeft={setPomodoroTimeLeft}
+                  isRunning={pomodoroIsRunning}
+                  setIsRunning={setPomodoroIsRunning}
+                  mode={pomodoroMode}
+                  setMode={setPomodoroMode}
+                  studyTime={pomodoroStudyTime}
+                  setStudyTime={setPomodoroStudyTime}
+                  breakTime={pomodoroBreakTime}
+                  setBreakTime={setPomodoroBreakTime}
+                  sessionsCompleted={pomodoroSessionsCompleted}
+                  setSessionsCompleted={setPomodoroSessionsCompleted}
+                />
               )}
 
               {activeTab === 'settings' && (
@@ -317,6 +446,7 @@ export default function App() {
                   onLock={lockAdminMode}
                   onSaveFirebaseConfig={handleSaveFirebaseConfig}
                   onResetFirebaseConfig={handleResetFirebaseConfig}
+                  onClearAllData={handleClearAllData}
                 />
               )}
             </>
@@ -392,6 +522,58 @@ export default function App() {
                 Xem và Xác nhận
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* E. FLOATING MODAL: POMODORO ALARM TIMEOUT ALERTS */}
+      {isPomodoroTimeoutModalOpen && (
+        <div id="pomodoro-timeout-overlay" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            id="pomodoro-timeout-backdrop"
+            onClick={() => {
+              setIsPomodoroTimeoutModalOpen(false);
+              // Trigger a secondary beep to silence/confirm
+            }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md" 
+          />
+          
+          <div 
+            id="pomodoro-timeout-dialog"
+            className="relative bg-white max-w-md w-full p-8 rounded-3xl border border-[#FFE1E5] shadow-25 animate-popIn z-10 flex flex-col items-center text-center space-y-5"
+          >
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl shadow-lg ring-4 ${
+              pomodoroTimeoutType === 'study' 
+                ? 'bg-[#800F2F] ring-rose-100 animate-bounce' 
+                : 'bg-emerald-600 ring-emerald-100 animate-pulse'
+            }`}>
+              {pomodoroTimeoutType === 'study' ? '🎓' : '☕'}
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-serif font-black text-lg md:text-xl text-[#800F2F]">
+                {pomodoroTimeoutType === 'study' 
+                  ? '⏰ Hết giờ học rồi, Hương ơi!' 
+                  : '☕ Kì nghỉ tuyệt vời đã hết rồi!'}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {pomodoroTimeoutType === 'study' 
+                  ? 'Tuyệt vời vô cùng! Bạn vừa hoàn thành xuất sắc chu kỳ tập trung cao độ 25 phút. Hãy đứng dậy vươn vai, hít thở sâu và nghỉ ngơi xả hơi 5 phút nhé.'
+                  : 'Đã nạp đầy năng lượng rồi đúng không nào? Hãy cùng quay lại bàn học tập rực rỡ để tiếp tục chinh phục giấc mơ blouse trắng của bạn Hương nha!'}
+              </p>
+            </div>
+
+            <button
+              id="close-pomodoro-timeout-btn"
+              onClick={() => setIsPomodoroTimeoutModalOpen(false)}
+              className={`w-full py-3 rounded-2xl text-xs font-black text-white shadow-md active:scale-95 transition-all cursor-pointer ${
+                pomodoroTimeoutType === 'study' 
+                  ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-200' 
+                  : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-200'
+              }`}
+            >
+              {pomodoroTimeoutType === 'study' ? 'BẮT ĐẦU NGHỈ NGƠI ☕' : 'QUAY LẠI HỌC BÀI THÔI 💪'}
+            </button>
           </div>
         </div>
       )}

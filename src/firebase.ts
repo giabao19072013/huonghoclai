@@ -348,3 +348,27 @@ export async function deleteStudySchedule(eventId: string): Promise<void> {
     localStorage.setItem('huong_study_schedules', JSON.stringify(filtered));
   }
 }
+
+// 5. PURGE ALL SANDBOX & MOCK DATA (Administrative clearance action)
+export async function clearAllFirebaseCollections(): Promise<void> {
+  const collectionsToClear = ['progress', 'documents', 'notes', 'schedules'];
+  if (db) {
+    try {
+      for (const colName of collectionsToClear) {
+        const querySnapshot = await getDocs(collection(db, colName));
+        const deletePromises: Promise<void>[] = [];
+        querySnapshot.forEach((docSnap) => {
+          deletePromises.push(deleteDoc(doc(db, colName, docSnap.id)));
+        });
+        await Promise.all(deletePromises);
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, 'all-collections-clear');
+    }
+  } else {
+    localStorage.removeItem('huong_lessons_progress');
+    localStorage.removeItem('huong_document_assets');
+    localStorage.removeItem('huong_study_notes');
+    localStorage.removeItem('huong_study_schedules');
+  }
+}

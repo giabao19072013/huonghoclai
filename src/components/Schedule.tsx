@@ -291,11 +291,22 @@ export default function Schedule({
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:border-[#800F2F]"
                 >
                   <option value="none">-- Tự điền nội dung khác --</option>
-                  {lessons.map(lesson => (
-                    <option key={lesson.id} value={lesson.id} className="bg-white">
-                      [{lesson.subject}] {lesson.title}
-                    </option>
-                  ))}
+                  {lessons.some(l => l.id.startsWith('custom-')) && (
+                    <optgroup label="✨ Bài học tự do (Tự thêm)">
+                      {lessons.filter(l => l.id.startsWith('custom-')).map(lesson => (
+                        <option key={lesson.id} value={lesson.id} className="bg-white">
+                          [{lesson.subject}] {lesson.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="📚 Bài học SGK">
+                    {lessons.filter(l => !l.id.startsWith('custom-')).map(lesson => (
+                      <option key={lesson.id} value={lesson.id} className="bg-white">
+                        [{lesson.subject}] {lesson.title}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 

@@ -9,7 +9,8 @@ import {
   Settings, 
   X,
   Menu,
-  Timer
+  Timer,
+  GraduationCap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -38,6 +39,7 @@ export default function Sidebar({
     { id: 'pomodoro', label: 'Pomodoro', icon: Clock },
     { id: 'quiz', label: 'Giả lập kiểm tra', icon: Timer },
     { id: 'settings', label: 'Cài đặt', icon: Settings },
+    { id: 'goal-university', label: '🎯 Mục tiêu Đại học', icon: GraduationCap },
   ];
 
   const handleTabClick = (id: string) => {

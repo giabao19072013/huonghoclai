@@ -381,11 +381,22 @@ export default function Notes({
                   disabled={!isAdmin}
                   className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-205 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none disabled:opacity-50"
                 >
-                  {lessons.map(lesson => (
-                    <option key={lesson.id} value={lesson.id} className="bg-white">
-                      [{lesson.subject} {lesson.grade}] - {lesson.title}
-                    </option>
-                  ))}
+                  {lessons.some(l => l.id.startsWith('custom-')) && (
+                    <optgroup label="✨ Bài học tự do (Tự thêm)">
+                      {lessons.filter(l => l.id.startsWith('custom-')).map(lesson => (
+                        <option key={lesson.id} value={lesson.id} className="bg-white">
+                          [{lesson.subject} Lớp {lesson.grade}] {lesson.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="📚 Sách giáo khoa chính thức">
+                    {lessons.filter(l => !l.id.startsWith('custom-')).map(lesson => (
+                      <option key={lesson.id} value={lesson.id} className="bg-white">
+                        [{lesson.subject} Lớp {lesson.grade}] - {lesson.title}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 

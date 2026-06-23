@@ -12,6 +12,7 @@ import Schedule from './components/Schedule';
 import Pomodoro from './components/Pomodoro';
 import Settings from './components/Settings';
 import QuizSimulation from './components/QuizSimulation';
+import GoalUniversity from './components/GoalUniversity';
 import Footer from './components/Footer';
 
 // Import Firebase API Methods
@@ -36,7 +37,35 @@ import {
 } from './firebase';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Sync initial load path with SPA tabs
+    const path = window.location.pathname.substring(1);
+    if (['dashboard', 'roadmap', 'documents', 'notes', 'schedule', 'pomodoro', 'quiz', 'settings', 'goal-university'].includes(path)) {
+      return path;
+    }
+    return 'dashboard';
+  });
+
+  // Sync activeTab state changes to browser URL for smooth and standard /goal-university navigation
+  useEffect(() => {
+    const desiredPath = activeTab === 'dashboard' ? '/' : `/${activeTab}`;
+    if (window.location.pathname !== desiredPath) {
+      window.history.pushState(null, '', desiredPath);
+    }
+  }, [activeTab]);
+
+  // Handle browser back/forward routing buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.substring(1) || 'dashboard';
+      if (['dashboard', 'roadmap', 'documents', 'notes', 'schedule', 'pomodoro', 'quiz', 'settings', 'goal-university'].includes(path)) {
+        setActiveTab(path);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Starts locked by default on load/reloads, as requested
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOpenMobile, setIsOpenMobile] = useState(false);
@@ -524,6 +553,10 @@ export default function App() {
                   profileGoal={profileGoal}
                   onUpdateProfile={handleUpdateProfile}
                 />
+              )}
+
+              {activeTab === 'goal-university' && (
+                <GoalUniversity onNavigate={setActiveTab} isAdmin={isAdmin} />
               )}
             </>
           )}

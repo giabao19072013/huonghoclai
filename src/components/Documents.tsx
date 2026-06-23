@@ -242,11 +242,22 @@ export default function Documents({
                 onChange={(e) => setFormLessonId(e.target.value)}
                 className="w-full px-4 py-2 text-xs rounded-xl border border-[#FFE1E5] focus:outline-none focus:border-[#800F2F] bg-white text-slate-700"
               >
-                {lessons.map(l => (
-                  <option key={l.id} value={l.id}>
-                    [{l.subject} {l.grade}] {l.title} ({l.chapter.substring(0, 15)}...)
-                  </option>
-                ))}
+                {lessons.some(l => l.id.startsWith('custom-')) && (
+                  <optgroup label="✨ Bài học tự do (Tự thêm)">
+                    {lessons.filter(l => l.id.startsWith('custom-')).map(l => (
+                      <option key={l.id} value={l.id}>
+                        [{l.subject} Lớp {l.grade}] {l.title} (Tự thêm)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                <optgroup label="📚 Sách giáo khoa chính thức">
+                  {lessons.filter(l => !l.id.startsWith('custom-')).map(l => (
+                    <option key={l.id} value={l.id}>
+                      [{l.subject} Lớp {l.grade}] {l.title} ({(l.chapter || '').substring(0, 15)}...)
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
@@ -320,11 +331,22 @@ export default function Documents({
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-100 bg-slate-50 focus:outline-none focus:border-[#800F2F] text-slate-700 truncate"
           >
             <option value="Tất cả">Tất cả các bài</option>
-            {dropdownFilteredLessons.map(l => (
-              <option key={l.id} value={l.id}>
-                [{l.subject}] {l.title}
-              </option>
-            ))}
+            {dropdownFilteredLessons.some(l => l.id.startsWith('custom-')) && (
+              <optgroup label="✨ Bài học tự do">
+                {dropdownFilteredLessons.filter(l => l.id.startsWith('custom-')).map(l => (
+                  <option key={l.id} value={l.id}>
+                    [{l.subject}] {l.title}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="📚 Tài liệu SGK">
+              {dropdownFilteredLessons.filter(l => !l.id.startsWith('custom-')).map(l => (
+                <option key={l.id} value={l.id}>
+                  [{l.subject}] {l.title}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
 

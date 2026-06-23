@@ -34,7 +34,8 @@ import {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isAdmin, setIsAdmin] = useState(true);
+  // Starts locked by default on load/reloads, as requested
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isOpenMobile, setIsOpenMobile] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInputValue, setPinInputValue] = useState('');
@@ -181,11 +182,8 @@ export default function App() {
 
     loadAllData();
 
-    // Checked stored Admin Login status on LocalStorage
-    const storedAdmin = localStorage.getItem('HUONG_ADMIN_LOGGED_IN');
-    if (storedAdmin === 'true') {
-      setIsAdmin(true);
-    }
+    // Always reset and lock the admin mode by default on page entry/refresh for data protection.
+    localStorage.removeItem('HUONG_ADMIN_LOGGED_IN');
   }, []);
 
   // 2. STATE SYNCHRONIZATION MUTATORS

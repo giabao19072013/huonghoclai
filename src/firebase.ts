@@ -10,6 +10,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import { LessonProgress, DocumentAsset, StudyNote, StudySchedule } from './types';
+import { Lesson } from './data/defaultLessons';
 import fallbackConfig from '../firebase-applet-config.json';
 
 // Error Handler definitions mandated by system skills
@@ -165,6 +166,16 @@ function sanitizeSchedule(sched: any): any {
     sanitized.completed = Boolean(sched.completed);
   }
   return sanitized;
+}
+
+function sanitizeCustomLesson(lesson: any): any {
+  return {
+    id: String(lesson.id || ''),
+    title: String(lesson.title || ''),
+    grade: lesson.grade === '11' || lesson.grade === '12' ? lesson.grade : '12',
+    subject: ['Toán', 'Hóa', 'Sinh', 'Lý'].includes(lesson.subject) ? lesson.subject : 'Toán',
+    chapter: String(lesson.chapter || '')
+  };
 }
 
 // Helper to determine if we are active on Firebase
@@ -481,9 +492,88 @@ export async function deleteStudySchedule(eventId: string): Promise<void> {
   }
 }
 
+// 4B. CUSTOM/FREE LESSONS
+export async function getCustomLessons(): Promise<Lesson[]> {
+  const pathName = 'lessons';
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, pathName));
+      const list: Lesson[] = [];
+      querySnapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          title: d.title || '',
+          grade: d.grade || '12',
+          subject: d.subject || 'Toán',
+          chapter: d.chapter || '',
+        });
+      });
+      return list;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, pathName);
+      return [];
+    }
+  } else {
+    const local = localStorage.getItem('huong_custom_lessons');
+    return local ? JSON.parse(local) : [];
+  }
+}
+
+export async function saveCustomLesson(lesson: Lesson): Promise<void> {
+  const pathName = 'lessons';
+  
+  // Always write to local storage first
+  try {
+    const local = localStorage.getItem('huong_custom_lessons');
+    const current: Lesson[] = local ? JSON.parse(local) : [];
+    const idx = current.findIndex(l => l.id === lesson.id);
+    if (idx > -1) {
+      current[idx] = lesson;
+    } else {
+      current.push(lesson);
+    }
+    localStorage.setItem('huong_custom_lessons', JSON.stringify(current));
+  } catch (err) {
+    console.warn('LocalStorage save custom lesson error:', err);
+  }
+
+  // Sync to database if available
+  if (db) {
+    try {
+      await setDoc(doc(db, pathName, lesson.id), sanitizeCustomLesson(lesson));
+    } catch (e) {
+      console.warn('Firestore custom lesson write err (fell back to local-only):', e);
+    }
+  }
+}
+
+export async function deleteCustomLesson(lessonId: string): Promise<void> {
+  const pathName = 'lessons';
+  
+  // Always update local storage first
+  try {
+    const local = localStorage.getItem('huong_custom_lessons');
+    const current: Lesson[] = local ? JSON.parse(local) : [];
+    const filtered = current.filter(l => l.id !== lessonId);
+    localStorage.setItem('huong_custom_lessons', JSON.stringify(filtered));
+  } catch (err) {
+    console.warn('LocalStorage delete custom lesson error:', err);
+  }
+
+  // Sync to database if available
+  if (db) {
+    try {
+      await deleteDoc(doc(db, pathName, lessonId));
+    } catch (e) {
+      console.warn('Firestore custom lesson delete err (fell back to local-only):', e);
+    }
+  }
+}
+
 // 5. PURGE ALL SANDBOX & MOCK DATA (Administrative clearance action)
 export async function clearAllFirebaseCollections(): Promise<void> {
-  const collectionsToClear = ['progress', 'documents', 'notes', 'schedules'];
+  const collectionsToClear = ['progress', 'documents', 'notes', 'schedules', 'lessons'];
   if (db) {
     try {
       for (const colName of collectionsToClear) {
@@ -502,6 +592,7 @@ export async function clearAllFirebaseCollections(): Promise<void> {
     localStorage.removeItem('huong_document_assets');
     localStorage.removeItem('huong_study_notes');
     localStorage.removeItem('huong_study_schedules');
+    localStorage.removeItem('huong_custom_lessons');
   }
 }
 
@@ -663,6 +754,34 @@ export async function synchronizeLocalAndCloud(): Promise<void> {
       }
     }
     localStorage.setItem('huong_study_schedules', JSON.stringify(cleanSchedulesList));
+
+    // --- 5. CUSTOM LESSONS SYNC ---
+    const localLessonsRaw = localStorage.getItem('huong_custom_lessons');
+    const localLessonsList: Lesson[] = localLessonsRaw ? JSON.parse(localLessonsRaw) : [];
+    
+    const firebaseLessonsSnapshot = await getDocs(collection(db, 'lessons'));
+    const firebaseLessonsList: Lesson[] = [];
+    firebaseLessonsSnapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      firebaseLessonsList.push({
+        id: docSnap.id,
+        title: d.title || '',
+        grade: d.grade || '12',
+        subject: d.subject || 'Toán',
+        chapter: d.chapter || '',
+      });
+    });
+    
+    if (!isMigrated) {
+      for (const lesson of localLessonsList) {
+        const exists = firebaseLessonsList.some(f => f.id === lesson.id);
+        if (!exists) {
+          await setDoc(doc(db, 'lessons', lesson.id), sanitizeCustomLesson(lesson));
+          firebaseLessonsList.push(lesson);
+        }
+      }
+    }
+    localStorage.setItem('huong_custom_lessons', JSON.stringify(firebaseLessonsList));
     
     // Set migration flag to tell the app subsequent reloads should just mirror current cloud state
     localStorage.setItem('HUONG_FIREBASE_MIGRATED_V3', 'true');

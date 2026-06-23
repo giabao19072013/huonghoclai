@@ -108,6 +108,36 @@
         }
       },
       "required": ["id", "title", "subject", "dayOfWeek", "startTime", "endTime"]
+    },
+    "CustomLesson": {
+      "title": "CustomLesson",
+      "description": "User created custom or free study lessons",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique lesson ID starting with custom-"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the custom lesson"
+        },
+        "grade": {
+          "type": "string",
+          "enum": ["11", "12"],
+          "description": "Target academic grade level"
+        },
+        "subject": {
+          "type": "string",
+          "enum": ["Toán", "Hóa", "Sinh", "Lý"],
+          "description": "Subject category"
+        },
+        "chapter": {
+          "type": "string",
+          "description": "Associated chapter group name"
+        }
+      },
+      "required": ["id", "title", "grade", "subject", "chapter"]
     }
   },
   "firestore": {
@@ -126,6 +156,10 @@
     "/schedules/{eventId}": {
       "schema": "StudySchedule",
       "description": "Academic timetable study events"
+    },
+    "/lessons/{lessonId}": {
+      "schema": "CustomLesson",
+      "description": "User created custom or free study lessons"
     }
   }
 }

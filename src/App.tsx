@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, X, HelpCircle, BookOpen } from 'lucide-react';
-import { DEFAULT_LESSONS } from './data/defaultLessons';
+import { DEFAULT_LESSONS, Lesson } from './data/defaultLessons';
 import { LessonProgress, DocumentAsset, StudyNote, StudySchedule, FirebaseConfig } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -17,7 +17,7 @@ import Footer from './components/Footer';
 // Import Firebase API Methods
 import {
   getLessonsProgress,
-  saveLessonProgress,
+   saveLessonProgress,
   getDocumentAssets,
   saveDocumentAsset,
   deleteDocumentAsset,
@@ -27,6 +27,9 @@ import {
   getStudySchedules,
   saveStudySchedule,
   deleteStudySchedule,
+  getCustomLessons,
+  saveCustomLesson,
+  deleteCustomLesson,
   isUsingFirebase,
   clearAllFirebaseCollections,
   synchronizeLocalAndCloud
@@ -162,17 +165,19 @@ export default function App() {
           }
         }
 
-        const [progressData, assetsData, notesData, schedulesData] = await Promise.all([
+        const [progressData, assetsData, notesData, schedulesData, customLessonsData] = await Promise.all([
           getLessonsProgress(),
           getDocumentAssets(),
           getStudyNotes(),
-          getStudySchedules()
+          getStudySchedules(),
+          getCustomLessons()
         ]);
 
         setProgress(progressData);
         setAssets(assetsData);
         setNotes(notesData);
         setSchedules(schedulesData);
+        setLessons([...DEFAULT_LESSONS, ...customLessonsData]);
       } catch (err) {
         console.error('Failure to load academic synchronization stores: ', err);
       } finally {
@@ -295,6 +300,31 @@ export default function App() {
     });
   };
 
+  const handleSaveCustomLesson = async (newLesson: Lesson) => {
+    setLessons(prev => {
+      const index = prev.findIndex(l => l.id === newLesson.id);
+      if (index > -1) {
+        const next = [...prev];
+        next[index] = newLesson;
+        return next;
+      } else {
+        return [...prev, newLesson];
+      }
+    });
+
+    saveCustomLesson(newLesson).catch(e => {
+      console.error('Không thể lưu bài học tự do mới!', e);
+    });
+  };
+
+  const handleDeleteCustomLesson = async (lessonId: string) => {
+    setLessons(prev => prev.filter(l => l.id !== lessonId));
+
+    deleteCustomLesson(lessonId).catch(e => {
+      console.error('Không thể xóa bài học tự do!', e);
+    });
+  };
+
   // 3. ADMIN ACCESS GATEWAYS PIN CONTROLS
   const unlockAdminMode = (pin: string): boolean => {
     if (pin === '2028') {
@@ -338,12 +368,14 @@ export default function App() {
     setAssets([]);
     setNotes([]);
     setSchedules([]);
+    setLessons(DEFAULT_LESSONS);
 
     // 2. Erase from LocalStorage fallback key collections!
     localStorage.removeItem('huong_lessons_progress');
     localStorage.removeItem('huong_document_assets');
     localStorage.removeItem('huong_study_notes');
     localStorage.removeItem('huong_study_schedules');
+    localStorage.removeItem('huong_custom_lessons');
 
     // 3. Delete from actual active Cloud Firestore too!
     try {
@@ -418,6 +450,8 @@ export default function App() {
                   onToggleProgress={handleToggleProgress}
                   isAdmin={isAdmin}
                   triggerUnlockModal={triggerUnlockModal}
+                  onAddCustomLesson={handleSaveCustomLesson}
+                  onDeleteCustomLesson={handleDeleteCustomLesson}
                 />
               )}
 

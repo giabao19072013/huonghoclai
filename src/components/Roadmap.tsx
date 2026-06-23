@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Square, Search, BookOpen, AlertCircle, FileText, Calendar, ChevronRight, X, Sparkles, BookMarked } from 'lucide-react';
+import { CheckSquare, Square, Search, BookOpen, AlertCircle, FileText, Calendar, ChevronRight, X, Sparkles, BookMarked, Plus, Trash2 } from 'lucide-react';
 import { Lesson } from '../data/defaultLessons';
 import { LessonProgress } from '../types';
 import { THEORY_DATA } from '../data/theoryData';
@@ -10,6 +10,8 @@ interface RoadmapProps {
   onToggleProgress: (lessonId: string, completed: boolean) => void;
   isAdmin: boolean;
   triggerUnlockModal: () => void;
+  onAddCustomLesson?: (newLesson: Lesson) => void;
+  onDeleteCustomLesson?: (lessonId: string) => void;
 }
 
 export default function Roadmap({ 
@@ -17,7 +19,9 @@ export default function Roadmap({
   progress, 
   onToggleProgress, 
   isAdmin,
-  triggerUnlockModal
+  triggerUnlockModal,
+  onAddCustomLesson,
+  onDeleteCustomLesson
 }: RoadmapProps) {
   const [selectedGrade, setSelectedGrade] = useState<'11' | '12'>('12');
   const [selectedSubject, setSelectedSubject] = useState<'Tất cả' | 'Toán' | 'Hóa' | 'Sinh' | 'Lý'>('Tất cả');
@@ -25,6 +29,10 @@ export default function Roadmap({
   
   // State for active Theory modal viewer
   const [viewingTheoryLesson, setViewingTheoryLesson] = useState<Lesson | null>(null);
+
+  // States for adding custom/free lessons
+  const [addingToChapter, setAddingToChapter] = useState<{ chapterName: string; grade: '11' | '12'; subject: 'Toán' | 'Hóa' | 'Sinh' | 'Lý' } | null>(null);
+  const [newLessonTitle, setNewLessonTitle] = useState('');
 
   // Index progress list to object for O(1) checks
   const completedMap = React.useMemo(() => {
@@ -69,6 +77,23 @@ export default function Roadmap({
 
   const handleOpenTheory = (lesson: Lesson) => {
     setViewingTheoryLesson(lesson);
+  };
+
+  const handleConfirmAddCustomLesson = () => {
+    if (!addingToChapter || !newLessonTitle.trim()) return;
+    if (!onAddCustomLesson) return;
+
+    const newLesson: Lesson = {
+      id: `custom-${Date.now()}`,
+      title: newLessonTitle.trim(),
+      grade: addingToChapter.grade,
+      subject: addingToChapter.subject,
+      chapter: addingToChapter.chapterName
+    };
+
+    onAddCustomLesson(newLesson);
+    setNewLessonTitle('');
+    setAddingToChapter(null);
   };
 
   const subjects: ('Toán' | 'Hóa' | 'Sinh' | 'Lý')[] = ['Toán', 'Hóa', 'Sinh', 'Lý'];
@@ -236,12 +261,32 @@ export default function Roadmap({
             <div key={chapter} className="bg-white rounded-3xl border border-[#FFE1E5] overflow-hidden shadow-sm">
               
               {/* Chapter branding header */}
-              <div id={`chapter-header-${chapter.replace(/\s+/g, '-')}`} className="bg-[#FFF8F9] px-5 py-4 border-b border-[#FFE1E5] flex items-center justify-between">
-                <h3 className="font-serif text-sm font-black text-[#800F2F] tracking-wide flex items-center gap-2">
-                  <BookOpen size={15} />
-                  {chapter}
-                </h3>
-                <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-lg bg-white text-slate-500 font-bold border border-slate-100">
+              <div id={`chapter-header-${chapter.replace(/\s+/g, '-')}`} className="bg-[#FFF8F9] px-5 py-4 border-b border-[#FFE1E5] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="font-serif text-sm font-black text-[#800F2F] tracking-wide flex items-center gap-2">
+                    <BookOpen size={15} />
+                    {chapter}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (!isAdmin) {
+                        triggerUnlockModal();
+                        return;
+                      }
+                      const firstLess = chapterLessons[0];
+                      setAddingToChapter({
+                        chapterName: chapter,
+                        grade: firstLess ? firstLess.grade : selectedGrade,
+                        subject: firstLess ? firstLess.subject : (selectedSubject === 'Tất cả' ? 'Toán' : selectedSubject)
+                      });
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-rose-50 border border-[#FFE1E5] text-[#800F2F] hover:bg-[#800F2F] hover:text-white transition-all cursor-pointer shadow-sm"
+                  >
+                    <Plus size={10} />
+                    Thêm bài học tự do
+                  </button>
+                </div>
+                <span className="self-start sm:self-auto text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-lg bg-white text-slate-500 font-bold border border-slate-100 whitespace-nowrap">
                   {chapterLessons.length} bài học
                 </span>
               </div>
@@ -318,6 +363,22 @@ export default function Roadmap({
                         >
                           {isCompleted ? 'Hoàn thành' : 'Đánh dấu'}
                         </button>
+
+                        {lesson.id.startsWith('custom-') && onDeleteCustomLesson && (
+                          <button
+                            onClick={() => {
+                              if (!isAdmin) {
+                                triggerUnlockModal();
+                                return;
+                              }
+                              onDeleteCustomLesson(lesson.id);
+                            }}
+                            className="inline-flex items-center justify-center p-2 rounded-xl text-slate-400 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-150 transition-all cursor-pointer ml-1"
+                            title="Xóa bài học tự do"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
 
                     </div>
@@ -381,6 +442,81 @@ export default function Roadmap({
                 Đóng lại
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. ADD CUSTOM LESSON POPUP OVERLAY */}
+      {addingToChapter && (
+        <div id="add-lesson-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setAddingToChapter(null)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" 
+          />
+          
+          <div 
+            id="add-lesson-dialog"
+            className="relative bg-white border border-[#FFE1E5] max-w-md w-full p-6 rounded-3xl shadow-2xl animate-popIn z-10 flex flex-col overflow-hidden text-slate-800"
+          >
+            {/* Modal Heading block */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-rose-100">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-mono font-black tracking-widest bg-[#FFF0F2] text-[#800F2F] border border-[#FFE1E5] px-2.5 py-0.5 rounded-md">
+                  Chương {addingToChapter.subject} lớp {addingToChapter.grade}
+                </span>
+                <h3 className="font-serif font-black text-xs md:text-sm text-[#800F2F]">
+                  Thêm bài học tự do
+                </h3>
+              </div>
+              <button
+                onClick={() => setAddingToChapter(null)}
+                className="text-slate-400 hover:text-[#800F2F] font-bold p-1 rounded-md"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleConfirmAddCustomLesson(); }} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold">
+                  Chương hiện tại
+                </label>
+                <div className="px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-slate-50 text-slate-500 font-medium leading-relaxed">
+                  {addingToChapter.chapterName}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold">
+                  Nhập tên bài học tự do
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Bài tập Nâng cao về Khúc xạ ánh sáng..."
+                  value={newLessonTitle}
+                  onChange={(e) => setNewLessonTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all"
+                  autoFocus
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingToChapter(null)}
+                  className="px-4 py-2 text-[11px] font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-all cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-[11px] font-bold rounded-xl bg-[#800F2F] hover:bg-[#A71E40] text-white transition-all cursor-pointer shadow-sm shadow-[#800f2f]/10"
+                >
+                  Thêm ngay
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

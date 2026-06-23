@@ -67,6 +67,17 @@ service cloud.firestore {
         && data.endTime is string;
     }
 
+    function isValidCustomLesson(data) {
+      return data.keys().hasAll(['id', 'title', 'grade', 'subject', 'chapter'])
+        && data.keys().size() == 5
+        && data.id is string
+        && data.title is string
+        && data.title.size() <= 200
+        && (data.grade == '11' || data.grade == '12')
+        && (data.subject == 'Toán' || data.subject == 'Hóa' || data.subject == 'Sinh' || data.subject == 'Lý')
+        && data.chapter is string;
+    }
+
     // Rules matching individual entities mapped in firebase-blueprint
 
     match /progress/{lessonId} {
@@ -99,6 +110,14 @@ service cloud.firestore {
       allow update: if isValidId(eventId) && isValidStudySchedule(incoming())
                        && incoming().id == existing().id;
       allow delete: if isValidId(eventId);
+    }
+
+    match /lessons/{lessonId} {
+      allow read, get, list: if true;
+      allow create: if isValidId(lessonId) && isValidCustomLesson(incoming());
+      allow update: if isValidId(lessonId) && isValidCustomLesson(incoming())
+                       && incoming().id == existing().id;
+      allow delete: if isValidId(lessonId);
     }
   }
 }

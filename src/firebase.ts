@@ -54,6 +54,24 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 // 1. Determine configuration (from file or dynamic localstorage override)
 const getActiveConfig = () => {
   let customConfig = localStorage.getItem('HUONG_FIREBASE_CONFIG');
+  
+  // ALWAYS verify if the stored config in localStorage matches the latest fallbackConfig (firebase-applet-config.json)
+  // If the applet is loaded with a different firebase config, we must update local storage to point to the correct DB!
+  if (customConfig) {
+    try {
+      const parsed = JSON.parse(customConfig);
+      if (parsed.projectId !== fallbackConfig.projectId || parsed.firestoreDatabaseId !== fallbackConfig.firestoreDatabaseId) {
+        console.log("Firebase configuration mismatch detected. Updating local storage with the latest fallback config.");
+        localStorage.setItem('HUONG_FIREBASE_CONFIG', JSON.stringify(fallbackConfig));
+        customConfig = JSON.stringify(fallbackConfig);
+      }
+    } catch (e) {
+      console.warn('Custom config parsing failed, resetting to latest fallbackConfig', e);
+      localStorage.setItem('HUONG_FIREBASE_CONFIG', JSON.stringify(fallbackConfig));
+      customConfig = JSON.stringify(fallbackConfig);
+    }
+  }
+
   if (!customConfig) {
     try {
       localStorage.setItem('HUONG_FIREBASE_CONFIG', JSON.stringify(fallbackConfig));

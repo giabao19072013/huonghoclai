@@ -34,6 +34,11 @@ export default function Roadmap({
   const [addingToChapter, setAddingToChapter] = useState<{ chapterName: string; grade: '11' | '12'; subject: 'Toán' | 'Hóa' | 'Sinh' | 'Lý' } | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState('');
 
+  // States for adding custom chapters
+  const [addingChapter, setAddingChapter] = useState<{ grade: '11' | '12'; subject: 'Toán' | 'Hóa' | 'Sinh' | 'Lý' } | null>(null);
+  const [newChapterName, setNewChapterName] = useState('');
+  const [newChapterFirstLesson, setNewChapterFirstLesson] = useState('');
+
   // Index progress list to object for O(1) checks
   const completedMap = React.useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -94,6 +99,24 @@ export default function Roadmap({
     onAddCustomLesson(newLesson);
     setNewLessonTitle('');
     setAddingToChapter(null);
+  };
+
+  const handleConfirmAddChapter = () => {
+    if (!addingChapter || !newChapterName.trim()) return;
+    if (!onAddCustomLesson) return;
+
+    const newLesson: Lesson = {
+      id: `custom-${Date.now()}`,
+      title: newChapterFirstLesson.trim() || 'Bài học mở đầu',
+      grade: addingChapter.grade,
+      subject: addingChapter.subject,
+      chapter: newChapterName.trim()
+    };
+
+    onAddCustomLesson(newLesson);
+    setNewChapterName('');
+    setNewChapterFirstLesson('');
+    setAddingChapter(null);
   };
 
   const subjects: ('Toán' | 'Hóa' | 'Sinh' | 'Lý')[] = ['Toán', 'Hóa', 'Sinh', 'Lý'];
@@ -218,39 +241,58 @@ export default function Roadmap({
           </div>
         </div>
 
-        {/* Floating Subject Filters List */}
-        <div id="subject-filter-row" className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
-          <button
-            onClick={() => setSelectedSubject('Tất cả')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-              selectedSubject === 'Tất cả' 
-                ? 'bg-[#800F2F] text-white shadow-sm' 
-                : 'bg-white border border-slate-200 text-slate-600 hover:border-rose-300 hover:text-[#800F2F]'
-            }`}
-          >
-            Tất cả các môn
-          </button>
-          {subjects.map((sub) => {
-            const isActive = selectedSubject === sub;
-            let colorAccent = 'hover:border-rose-300 hover:text-[#800F2F]';
-            if (sub === 'Hóa') colorAccent = 'hover:border-amber-300 hover:text-amber-600';
-            if (sub === 'Sinh') colorAccent = 'hover:border-emerald-300 hover:text-emerald-600';
-            if (sub === 'Lý') colorAccent = 'hover:border-sky-300 hover:text-sky-600';
+        {/* Floating Subject Filters List & Add Chapter Button */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-[#FFE1E5]/60 shadow-sm">
+          <div id="subject-filter-row" className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none flex-1">
+            <button
+              onClick={() => setSelectedSubject('Tất cả')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                selectedSubject === 'Tất cả' 
+                  ? 'bg-[#800F2F] text-white shadow-sm' 
+                  : 'bg-slate-50 border border-slate-200 text-slate-600 hover:border-rose-300 hover:text-[#800F2F]'
+              }`}
+            >
+              Tất cả các môn
+            </button>
+            {subjects.map((sub) => {
+              const isActive = selectedSubject === sub;
+              let colorAccent = 'hover:border-rose-300 hover:text-[#800F2F]';
+              if (sub === 'Hóa') colorAccent = 'hover:border-amber-300 hover:text-amber-600';
+              if (sub === 'Sinh') colorAccent = 'hover:border-emerald-300 hover:text-emerald-600';
+              if (sub === 'Lý') colorAccent = 'hover:border-sky-300 hover:text-sky-600';
 
-            return (
-              <button
-                key={sub}
-                onClick={() => setSelectedSubject(sub)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-[#800F2F] text-white shadow-sm' 
-                    : `bg-white border border-slate-200 text-slate-600 ${colorAccent}`
-                }`}
-              >
-                Môn {sub}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={sub}
+                  onClick={() => setSelectedSubject(sub)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    isActive 
+                      ? 'bg-[#800F2F] text-white shadow-sm' 
+                      : `bg-slate-50 border border-slate-200 text-slate-600 ${colorAccent}`
+                  }`}
+                >
+                  Môn {sub}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => {
+              if (!isAdmin) {
+                triggerUnlockModal();
+                return;
+              }
+              setAddingChapter({
+                grade: selectedGrade,
+                subject: selectedSubject === 'Tất cả' ? 'Toán' : selectedSubject
+              });
+            }}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold bg-[#800F2F] hover:bg-[#A71E40] text-white transition-all cursor-pointer shadow-sm shadow-[#800f2f]/10"
+          >
+            <Plus size={14} />
+            Thêm chương học mới
+          </button>
         </div>
       </div>
 
@@ -514,6 +556,118 @@ export default function Roadmap({
                   className="px-4 py-2 text-[11px] font-bold rounded-xl bg-[#800F2F] hover:bg-[#A71E40] text-white transition-all cursor-pointer shadow-sm shadow-[#800f2f]/10"
                 >
                   Thêm ngay
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. ADD CUSTOM CHAPTER POPUP OVERLAY */}
+      {addingChapter && (
+        <div id="add-chapter-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            onClick={() => setAddingChapter(null)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" 
+          />
+          
+          <div 
+            id="add-chapter-dialog"
+            className="relative bg-white border border-[#FFE1E5] max-w-md w-full p-6 rounded-3xl shadow-2xl animate-popIn z-10 flex flex-col overflow-hidden text-slate-800"
+          >
+            {/* Modal Heading block */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-rose-100">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-[#800F2F] text-white shadow-sm shrink-0">
+                  <Sparkles size={14} />
+                </span>
+                <h3 className="font-serif font-black text-sm text-[#800F2F]">
+                  Thêm chương học mới
+                </h3>
+              </div>
+              <button
+                onClick={() => setAddingChapter(null)}
+                className="text-slate-400 hover:text-[#800F2F] font-bold p-1 rounded-md cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); handleConfirmAddChapter(); }} className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold">
+                    Môn học
+                  </label>
+                  <select
+                    value={addingChapter.subject}
+                    onChange={(e) => setAddingChapter(prev => prev ? { ...prev, subject: e.target.value as any } : null)}
+                    className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all"
+                  >
+                    <option value="Toán">Toán</option>
+                    <option value="Hóa">Hóa</option>
+                    <option value="Sinh">Sinh</option>
+                    <option value="Lý">Lý</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold">
+                    Khối lớp
+                  </label>
+                  <select
+                    value={addingChapter.grade}
+                    onChange={(e) => setAddingChapter(prev => prev ? { ...prev, grade: e.target.value as any } : null)}
+                    className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all"
+                  >
+                    <option value="11">Lớp 11</option>
+                    <option value="12">Lớp 12</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold">
+                  Tên chương mới
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Chương 6: Điện học nâng cao..."
+                  value={newChapterName}
+                  onChange={(e) => setNewChapterName(e.target.value)}
+                  className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[#800F2F] mb-1.5 font-bold flex items-center gap-1">
+                  Bài học mở đầu
+                  <span className="text-[9px] font-normal text-slate-400 font-sans italic">(Có thể tùy chỉnh)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Mặc định: Bài học mở đầu"
+                  value={newChapterFirstLesson}
+                  onChange={(e) => setNewChapterFirstLesson(e.target.value)}
+                  className="w-full px-3 py-2 text-[11px] rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-[#800F2F] focus:outline-none focus:border-[#800F2F] transition-all"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingChapter(null)}
+                  className="px-4 py-2 text-[11px] font-bold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-all cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-[11px] font-bold rounded-xl bg-[#800F2F] hover:bg-[#A71E40] text-white transition-all cursor-pointer shadow-sm shadow-[#800f2f]/10"
+                >
+                  Thêm chương học
                 </button>
               </div>
             </form>
